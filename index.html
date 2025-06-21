@@ -32,8 +32,10 @@
         .game-canvas-container {
             width: 95vw; 
             max-width: 1280px; 
-            height: 85vh; 
-            max-height: 720px; 
+            /* height: 85vh; removed */
+            /* max-height: 720px; removed */
+            aspect-ratio: 16 / 9; /* Enforce 16:9 aspect ratio */
+            max-height: 85vh; /* Ensure it doesn't grow taller than 85% of viewport height */
             margin: 10px auto; 
             position: relative; 
             overflow: hidden; 
@@ -41,17 +43,22 @@
             box-shadow: 0 0 15px rgba(74, 0, 224, 0.7); /* Outer glow */
             transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             border-radius: 8px; /* Slightly rounded corners */
+            display: flex; /* Added to center canvas content */
+            justify-content: center; /* Added */
+            align-items: center; /* Added */
         }
         .game-canvas-container canvas {
             display: block;
             width: 100%; 
             height: 100%; 
-            object-fit: contain; 
+            object-fit: contain; /* This is key to scale the internal canvas while maintaining its aspect ratio */
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
             background-color: #000000; 
             outline: none; 
+            max-width: 100%; /* Ensure canvas does not try to exceed container if letterboxed */
+            max-height: 100%; /* Ensure canvas does not try to exceed container if letterboxed */
         }
         /* Visual cue for canvas focus - Space theme */
         .game-canvas-container canvas:focus,
@@ -114,7 +121,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
