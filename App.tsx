@@ -629,12 +629,19 @@ const App: React.FC = () => {
   }, [availableUpgrades]);
 
   const handleEnemyDeath = useCallback((killedEnemy: Enemy) => {
-    let particleColor = killedEnemy.color;
-    if (killedEnemy.visualVariant === 'cosmic_energy_orb') particleColor = '#00FFFF'; 
-    else if (killedEnemy.visualVariant === 'nebula_serpent') particleColor = '#DA70D6'; 
-    else particleColor = '#C0C0C0'; 
+    const randomHue = Math.random() * 360;
+    const particleColor = `hsl(${randomHue}, 90%, 70%)`; // Generate a random vibrant HSL color
 
-    createParticleEffect(killedEnemy.x + killedEnemy.width/2, killedEnemy.y + killedEnemy.height/2, killedEnemy.enemyType === 'boss' ? 80 : (killedEnemy.enemyType === 'splitter' ? 40 : 30), particleColor, killedEnemy.enemyType === 'boss' ? 83 : (killedEnemy.enemyType === 'splitter' ? 33 : 33), 500, 0.8, 'generic'); 
+    createParticleEffect(
+        killedEnemy.x + killedEnemy.width/2, 
+        killedEnemy.y + killedEnemy.height/2, 
+        killedEnemy.enemyType === 'boss' ? 80 : (killedEnemy.enemyType === 'splitter' ? 40 : 30), 
+        particleColor, 
+        killedEnemy.enemyType === 'boss' ? 83 : (killedEnemy.enemyType === 'splitter' ? 33 : 33), 
+        500, 
+        0.8, 
+        'generic'
+    ); 
     
     if (gameContextForUpgrades.enableFragmentation) {
         gameContextForUpgrades.enableFragmentation(killedEnemy);
