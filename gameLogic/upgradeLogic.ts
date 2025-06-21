@@ -1,9 +1,7 @@
+
+
 import { Upgrade, Player, Enemy } from '../types';
 import { PLAYER_INITIAL_ATTACK_SPEED, PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_CRIT_CHANCE } from '../constants';
-
-// Note: 'game: any' for game context in apply functions is kept for now
-// to avoid circular dependencies or overly complex type definitions at this stage.
-// It typically provides access to methods like addEnemyProjectile or modify game-wide flags.
 
 export const UPGRADES: Upgrade[] = [
   {
@@ -118,14 +116,6 @@ export const UPGRADES: Upgrade[] = [
     },
     maxApplications: 5,
   },
-   {
-    id: 'gush',
-    name: 'Impulso',
-    description: 'Adiciona +1 Pulo (Habilita Pulo Duplo). Máx 1 aplicação.',
-    tier: 'incomum',
-    apply: (player) => { player.canDoubleJump = true; },
-    maxApplications: 1,
-  },
   {
     id: 'piercingRounds',
     name: 'Munição Perfurante',
@@ -228,9 +218,6 @@ export const UPGRADES: Upgrade[] = [
         player.shieldRechargeDelay = 5; 
         player.shieldRechargeRate = 1; 
         player.shieldLastDamagedTime = 0;
-      } else {
-        // player.shieldMaxHp = Math.min((player.shieldMaxHp || 0) + 1, 3);
-        // player.shieldRechargeDelay = Math.max((player.shieldRechargeDelay || 5) - 0.5, 2); 
       }
     },
     maxApplications: 1, 

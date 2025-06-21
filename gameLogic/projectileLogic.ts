@@ -2,8 +2,9 @@
 import { Player, MouseState, Projectile, ProjectileEffectType, Enemy, StaffItem } from '../types';
 import {
   PLAYER_PROJECTILE_COLOR, CANVAS_WIDTH, CANVAS_HEIGHT, PROJECTILE_ART_WIDTH,
-  PROJECTILE_ART_HEIGHT, SPRITE_PIXEL_SIZE, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT, ALL_STAFFS
+  PROJECTILE_ART_HEIGHT, SPRITE_PIXEL_SIZE, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT
 } from '../constants';
+import { ALL_STAFFS_SHOP } from './shopLogic'; // Added import for ALL_STAFFS_SHOP
 import { hexToRgba } from './canvasArt'; // Added import
 
 const RAINBOW_STAFF_EFFECT_TYPES: ProjectileEffectType[] = ['trident', 'boomstaff', 'thunder_staff', 'emerald_homing', 'frozen_tip', 'shadow_bolt'];
@@ -73,7 +74,7 @@ export function createPlayerProjectiles(
   let shootVolume = 0.5;
 
   const activeStaffId = player.selectedStaffId;
-  const currentStaffItem = ALL_STAFFS.find(s => s.id === activeStaffId) || ALL_STAFFS[0];
+  const currentStaffItem = ALL_STAFFS_SHOP.find(s => s.id === activeStaffId) || ALL_STAFFS_SHOP[0];
   let finalProjectileColor = currentStaffItem.projectileColor;
   let finalGlowEffectColor = currentStaffItem.projectileGlowColor;
   
@@ -85,7 +86,7 @@ export function createPlayerProjectiles(
   else if (activeStaffId === 'staff_rainbow') {
     staffEffectForShot = RAINBOW_STAFF_EFFECT_TYPES[Math.floor(Math.random() * RAINBOW_STAFF_EFFECT_TYPES.length)];
     // For rainbow, derive color from the chosen effect's staff
-    const effectStaff = ALL_STAFFS.find(s => 
+    const effectStaff = ALL_STAFFS_SHOP.find(s => 
         (s.id === 'staff_trident' && staffEffectForShot === 'trident') ||
         (s.id === 'staff_boom' && staffEffectForShot === 'boomstaff') ||
         (s.id === 'staff_thunder' && staffEffectForShot === 'thunder_staff') ||

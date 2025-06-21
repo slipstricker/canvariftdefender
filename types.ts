@@ -1,3 +1,5 @@
+
+
 export interface GameObject {
   x: number;
   y: number;
@@ -55,7 +57,7 @@ export interface Player extends GameObject {
   revives: number;
   appraisalChoices: number; // Number of upgrade choices
   onGround: boolean;
-  canDoubleJump?: boolean;
+  canDoubleJump?: boolean; // Now a permanent skill
   hasJumpedOnce?: boolean;
   thunderboltEffectiveBolts?: number;
   isAdmin?: boolean; // Flag for admin mode
@@ -97,18 +99,36 @@ export interface Player extends GameObject {
   shieldRechargeRate?: number; // hp per second, only when not recently hit
   shieldLastDamagedTime?: number; // timestamp when shield was last hit or broken
   
-  // Character Customization
+  // Character Customization & Shop
   selectedHatId: string | null; 
   selectedStaffId: string | null;
+  coins: number;
+  // purchasedPermanentSkillIds: string[]; // For Dash, Double Jump, etc. - Replaced
+  purchasedPermanentSkills: Record<string, { level: number }>; // e.g. { 'skill_dash': { level: 2 } }
+  xpBonus: number; // e.g. 1.1 for +10%
+  coinDropBonus: number; // e.g. 0.02 for +2% (additive to base 10% chance)
+
 
   // Hat/Staff Effects
   challengerHatMoreEnemies?: boolean; // For Challenger's Hat
   canFreeRerollUpgrades?: boolean; // For Fedora
   usedFreeRerollThisLevelUp?: boolean; // For Fedora
 
-  // New flags for particle effects
+  // Particle effect flags
   justDoubleJumped?: boolean;
   justLanded?: boolean;
+  justDashed?: boolean; 
+
+  // Dash properties (conditional on skill purchase)
+  hasDashSkill?: boolean;
+  dashCooldownTime?: number;
+  lastDashTimestamp?: number;
+  isDashing?: boolean;
+  dashDurationTime?: number;
+  dashTimer?: number;
+  dashSpeedValue?: number;
+  dashDirection?: 'left' | 'right';
+  dashInvincibilityDuration?: number; // Duration of invincibility granted by dash
 }
 
 export type EnemyType = 'standard' | 'boss' | 'splitter' | 'miniSplitter';
@@ -175,7 +195,7 @@ export interface Projectile extends GameObject {
   trailPoints?: { x: number, y: number, life: number, initialLife: number, size: number }[]; // Added trailPoints for advanced trails
 }
 
-export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic';
+export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic' | 'coin_pickup' | 'dash_trail';
 
 export interface Particle extends GameObject {
   life: number;
@@ -211,6 +231,7 @@ export interface Upgrade {
 export enum GameState {
   StartMenu,        // MenuInicial
   CharacterSelection, // SelecaoPersonagem
+  Shop,             // Loja de Artefatos
   CosmeticSelectionModal, // Modal de Seleção de Cosméticos
   Playing,          // Jogando
   ChoosingUpgrade,  // EscolhendoMelhoria
@@ -220,13 +241,13 @@ export enum GameState {
   Leaderboard,      // PlacarLideres
   DebugMenu,        // Formerly AdminMenu
   ActiveSkillsDisplay, // ExibirHabilidadesAtivas
-  UnlockNotificationPopup, // Popup de Notificação de Desbloqueio
 }
 
 export interface Keys {
   a: boolean;
   d: boolean;
   space: boolean;
+  shift: boolean; 
 }
 
 export interface MouseState {
@@ -259,6 +280,7 @@ export interface AdminConfig {
   xpMultiplier?: number;
   damageMultiplier?: number;
   defenseBoost?: number; // Represents a flat percentage boost, e.g., 0.1 for +10%
+  initialCoins?: number; // For debug
 }
 
 // Used for the state that prepares data for rendering acquired skills UI
@@ -268,7 +290,6 @@ export interface DisplayedSkillInfo {
   icon: string;
   count: number;
   description: string; 
-  // rect for canvas hover will be calculated and stored in a ref during draw, not in this state type
 }
 
 export interface FloatingText {
@@ -283,24 +304,22 @@ export interface FloatingText {
   fontSize: number;
 }
 
-// Character Customization Types
 export type CosmeticUnlockWave = number; 
 
 export interface CosmeticItem {
   id: string;
   name: string;
   description: string;
-  unlockWave: CosmeticUnlockWave; // Kept for ordering, but not primary unlock mechanism
+  unlockWave?: CosmeticUnlockWave; // Made optional for shop-only items
+  price: number; 
   type: 'hat' | 'staff';
-  // spriteKey and paletteKey will be deprecated for rendering, kept for reference or other UI if needed
   spriteKey: string; 
   paletteKey: string; 
-  // artWidth, artHeight, offsetX, offsetY may be re-interpreted for canvas drawing
   artWidth: number; 
   artHeight: number; 
   offsetX?: number; 
   offsetY?: number; 
-  effectDescription?: string; // For UI display of gameplay effect
+  effectDescription?: string; 
 }
 
 export interface HatItem extends CosmeticItem {
@@ -309,18 +328,42 @@ export interface HatItem extends CosmeticItem {
 
 export interface StaffItem extends CosmeticItem {
   type: 'staff';
-  projectileColor: string; // Main color for projectiles fired by this staff
-  projectileGlowColor?: string; // Optional glow color, especially if projectileColor is dark
+  projectileColor: string; 
+  projectileGlowColor?: string; 
 }
 
+export interface SkillLevel {
+  level: number;
+  price: number;
+  effectDescription: string;
+  applyEffect: (player: Player) => void;
+  // Specific values for UI display, actual application happens in applyEffect
+  dashCooldown?: number;
+  xpBonus?: number; // e.g., 0.1 for +10%
+  coinDropBonus?: number; // e.g., 0.02 for +2%
+}
+
+export interface LeveledSkill {
+  id: `skill_${string}`;
+  name: string;
+  icon: string; // Icon for the shop UI
+  baseDescription: string; // General description
+  type: 'permanent_skill';
+  levels: SkillLevel[];
+}
+
+
 export interface CosmeticUnlocksData {
-  bossesDefeatedForCosmetics: number;
+  purchasedItemIds: string[];
+  playerCoins: number;
+  // purchasedPermanentSkillIds: string[]; // Replaced
+  purchasedPermanentSkills: Record<string, { level: number }>;
 }
 
 export interface EnemyUpdateResult {
   updatedEnemy: Enemy;
   newProjectiles: Projectile[];
-  enemiesToSpawn?: Enemy[]; // For boss summons
+  enemiesToSpawn?: Enemy[]; 
 }
 
 export interface Star {
@@ -337,8 +380,8 @@ export interface Nebula {
   y: number;
   radiusX: number;
   radiusY: number;
-  color1: string; // Inner color
-  color2: string; // Outer color
+  color1: string; 
+  color2: string; 
   opacity: number;
   rotation: number;
 }

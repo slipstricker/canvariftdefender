@@ -1,25 +1,30 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig, DisplayedSkillInfo, FloatingText, AppliedStatusEffect, EnemyType, CosmeticUnlocksData, HatItem, StaffItem, CosmeticItem, ProjectileEffectType, EnemyUpdateResult, AlienVisualVariant, Star, Nebula, ParticleType } from './types';
+import { Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig, DisplayedSkillInfo, FloatingText, AppliedStatusEffect, EnemyType, CosmeticUnlocksData, HatItem, StaffItem, CosmeticItem, ProjectileEffectType, EnemyUpdateResult, AlienVisualVariant, Star, Nebula, ParticleType, LeveledSkill } from './types';
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_INITIAL_HP, PLAYER_WIDTH, PLAYER_HEIGHT,
   XP_PER_LEVEL_BASE, XP_LEVEL_MULTIPLIER, GRAVITY,
   INITIAL_WAVE_CONFIG, WAVE_CONFIG_INCREMENTS, PLAYER_INTERMISSION_HEAL_PERCENT,
   GROUND_PLATFORM_HEIGHT, DYNAMIC_PLATFORM_HEIGHT, DEFAULT_PLATFORM_PADDING,
   PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE, PLAYER_INITIAL_PROJECTILE_DAMAGE, PLAYER_INITIAL_DEFENSE,
+  SKILL_DASH_DURATION, SKILL_DASH_SPEED, SKILL_DASH_INVINCIBILITY_DURATION,
   ADMIN_START_WAVE,
   BOSS_WAVE_NUMBER, BOSS_FURY_MODE_HP_THRESHOLD, BOSS_FURY_DAMAGE_MULTIPLIER, ALL_BOSS_WAVES,
   SPRITE_PIXEL_SIZE, PLAYER_PROJECTILE_COLOR, ENEMY_PROJECTILE_COLOR, 
   PROJECTILE_ART_WIDTH, PROJECTILE_ART_HEIGHT, ENEMY_ART_WIDTH, ENEMY_ART_HEIGHT,
   SPLITTER_ART_WIDTH, SPLITTER_ART_HEIGHT, MINI_SPLITTER_COUNT_MIN, MINI_SPLITTER_COUNT_MAX, BOSS_ART_WIDTH, BOSS_ART_HEIGHT,
-  ALL_HATS, ALL_STAFFS, COSMETIC_STORAGE_KEY, ORDERED_UNLOCKABLE_COSMETICS,
+  COSMETIC_DATA_KEY,
   PLAYER_ART_WIDTH as PLAYER_ART_WIDTH_CONST_REF, 
   PLAYER_ART_HEIGHT as PLAYER_ART_HEIGHT_CONST_REF, 
   PREVIEW_SPRITE_PIXEL_SIZE, 
   MAX_LEVEL_CHEAT_BUFFER, MAX_SKILLS_CHEAT_BUFFER,
+  SKILL_ID_DOUBLE_JUMP, SKILL_ID_DASH, SKILL_ID_XP_BOOST, SKILL_ID_COIN_MAGNET
 } from './constants';
 import {
-} from './gameLogic/spriteArt'; 
+  ALL_HATS_SHOP, ALL_STAFFS_SHOP, PERMANENT_SKILLS_SHOP, DEFAULT_HAT_ID, DEFAULT_STAFF_ID,
+  applyHatEffect, applyStaffEffectToPlayerBase
+} from './gameLogic/shopLogic';
 import { PLATFORMS as InitialStaticPlatforms, repositionAndResizeAllDynamicPlatforms } from './gameLogic/platformLogic';
 import { UPGRADES as InitialUpgrades } from './gameLogic/upgradeLogic';
 import { updatePlayerState } from './gameLogic/playerLogic';
@@ -36,10 +41,7 @@ import UpgradeCard from './components/UpgradeCard';
 import SkillsInfoScreen from './components/SkillsInfoScreen';
 import { fetchLeaderboard, submitScore } from './onlineLeaderboardService';
 import { 
-    // loadSfx, loadMusic, playSound, playMusic, pauseMusic, stopMusic, 
-    // toggleGlobalMute, getGlobalMuteStatus, setGlobalVolume, getGlobalVolume,
-    // musicAssets 
-} from './gameLogic/audioManager'; // Audio functions are now no-ops internally
+} from './gameLogic/audioManager'; 
 
 
 type WaveStatus = 'intermissao' | 'surgindo' | 'lutando';
@@ -47,8 +49,9 @@ type WaveStatus = 'intermissao' | 'surgindo' | 'lutando';
 const UPGRADE_ICONS: Record<string, string> = {
   catalyst: "🔥", growth: "❤️", resonance: "⚡", swift: "👟", renew: "✚", leech: "🩸",
   fragmentation: "💥", thunderbolt: "🌩️", appraisal: "📜", immortal: "😇", eyesight: "👁️",
-  gush: "💨", scorchedRounds: "♨️", cryoRounds: "❄️", piercingRounds: "🎯", seekerRounds: "🛰️", energyShield: "🛡️",
+  scorchedRounds: "♨️", cryoRounds: "❄️", piercingRounds: "🎯", seekerRounds: "🛰️", energyShield: "🛡️",
 };
+// SKILL_ICONS are now part of LeveledSkill in shopLogic.ts
 
 const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: string | null = null, selectedStaffId: string | null = null): Player => ({
   nickname: nickname,
@@ -77,7 +80,7 @@ const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: stri
   isJumping: false,
   isInvincible: false,
   lastHitTime: 0,
-  invincibilityDuration: 500,
+  invincibilityDuration: 500, // Default hit invincibility
   shootCooldown: 0,
   lastShotTime: 0,
   upgrades: [],
@@ -85,7 +88,7 @@ const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: stri
   revives: 0,
   appraisalChoices: 3,
   onGround: true,
-  canDoubleJump: false,
+  canDoubleJump: false, 
   hasJumpedOnce: false,
   thunderboltEffectiveBolts: 0,
   isAdmin: false,
@@ -105,12 +108,26 @@ const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: stri
   shieldLastDamagedTime: 0,
   selectedHatId,
   selectedStaffId,
+  coins: 0,
+  purchasedPermanentSkills: {}, // Initialize empty record for leveled skills
+  xpBonus: 1, // Default 100% XP (no bonus)
+  coinDropBonus: 0, // Default 0% bonus coin drop
   challengerHatMoreEnemies: false,
   canFreeRerollUpgrades: false,
   usedFreeRerollThisLevelUp: false,
   draw: () => {},
   justDoubleJumped: false,
   justLanded: false,
+  justDashed: false,
+  hasDashSkill: false,
+  dashCooldownTime: 30, // Default will be overridden by skill
+  lastDashTimestamp: 0,
+  isDashing: false,
+  dashDurationTime: SKILL_DASH_DURATION,
+  dashTimer: 0,
+  dashSpeedValue: SKILL_DASH_SPEED,
+  dashDirection: 'right',
+  dashInvincibilityDuration: SKILL_DASH_INVINCIBILITY_DURATION,
 });
 
 function verticalLineIntersectsRect(lineX: number, rect: {x: number, y: number, width: number, height: number}): boolean {
@@ -125,13 +142,14 @@ interface CenterScreenMessage {
     fontSize?: number;
 }
 
-const WAVE_ANNOUNCEMENT_DURATION = 5; // For "Chegando", "Neutralizada", "Reforços"
-const BOSS_SUMMON_WARNING_UPDATE_INTERVAL = 1; // For "Invocando em Xs"
-const INTERMISSION_COUNTDOWN_UPDATE_INTERVAL = 1.1; // For "Próxima onda em Xs"
+const WAVE_ANNOUNCEMENT_DURATION = 5; 
+const BOSS_SUMMON_WARNING_UPDATE_INTERVAL = 1; 
+const INTERMISSION_COUNTDOWN_UPDATE_INTERVAL = 1.1; 
 
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
   const [gameState, setGameState] = useState<GameState>(GameState.StartMenu);
   const previousGameStateRef = useRef<GameState>(GameState.StartMenu);
 
@@ -147,18 +165,28 @@ const App: React.FC = () => {
     xpMultiplier: 1,
     damageMultiplier: 1,
     defenseBoost: 0,
+    initialCoins: 0,
   });
   const adminConfigRef = useRef(adminConfig);
    useEffect(() => { adminConfigRef.current = adminConfig; }, [adminConfig]);
 
+  const [playerCoins, setPlayerCoins] = useState<number>(0);
+  const [purchasedCosmeticIds, setPurchasedCosmeticIds] = useState<string[]>([DEFAULT_HAT_ID, DEFAULT_STAFF_ID]);
+  const [purchasedPermanentSkillsState, setPurchasedPermanentSkillsState] = useState<Record<string, { level: number }>>({});
 
-  const [cosmeticUnlocksData, setCosmeticUnlocksData] = useState<CosmeticUnlocksData>({ bossesDefeatedForCosmetics: 0 });
-  const [selectedHatIdForSelectionScreen, setSelectedHatIdForSelectionScreen] = useState<string | null>(ALL_HATS.find(h => h.unlockWave === 0)?.id || null);
-  const [selectedStaffIdForSelectionScreen, setSelectedStaffIdForSelectionScreen] = useState<string | null>(ALL_STAFFS.find(s => s.unlockWave === 0)?.id || null);
-  const cosmeticUnlocksDataRef = useRef(cosmeticUnlocksData);
-  useEffect(() => { cosmeticUnlocksDataRef.current = cosmeticUnlocksData; }, [cosmeticUnlocksData]);
-  const [currentUnlockPopupItems, setCurrentUnlockPopupItems] = useState<CosmeticItem[]>([]);
 
+  const playerCoinsRef = useRef(playerCoins);
+  useEffect(() => { playerCoinsRef.current = playerCoins; }, [playerCoins]);
+  const purchasedCosmeticIdsRef = useRef(purchasedCosmeticIds);
+  useEffect(() => { purchasedCosmeticIdsRef.current = purchasedCosmeticIds; }, [purchasedCosmeticIds]);
+  
+  const purchasedPermanentSkillsRef = useRef(purchasedPermanentSkillsState);
+  useEffect(() => { purchasedPermanentSkillsRef.current = purchasedPermanentSkillsState; }, [purchasedPermanentSkillsState]);
+
+
+  const [selectedHatIdForSelectionScreen, setSelectedHatIdForSelectionScreen] = useState<string | null>(DEFAULT_HAT_ID);
+  const [selectedStaffIdForSelectionScreen, setSelectedStaffIdForSelectionScreen] = useState<string | null>(DEFAULT_STAFF_ID);
+  
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [playerProjectiles, setPlayerProjectiles] = useState<Projectile[]>([]);
   const [enemyProjectiles, setEnemyProjectiles] = useState<Projectile[]>([]);
@@ -181,7 +209,6 @@ const App: React.FC = () => {
   const [enemiesSpawnedThisWaveCount, setEnemiesSpawnedThisWaveCount] = useState(0);
   const [timeToNextWaveAction, setTimeToNextWaveAction] = useState(INITIAL_WAVE_CONFIG.intermissionTime);
   const [centerScreenMessage, setCenterScreenMessage] = useState<CenterScreenMessage | null>(null);
-  // bottomHudMessage is no longer needed, its functionalities are moved to centerScreenMessage or the progress bar.
 
   const currentWaveConfigRef = useRef(INITIAL_WAVE_CONFIG);
 
@@ -189,7 +216,7 @@ const App: React.FC = () => {
   const [nebulae, setNebulae] = useState<Nebula[]>([]);
 
 
-  const keysRef = useRef<Keys>({ a: false, d: false, space: false });
+  const keysRef = useRef<Keys>({ a: false, d: false, space: false, shift: false });
   const mouseStateRef = useRef<MouseState>({ x: 0, y: 0, isDown: false });
   const lastFrameTimeRef = useRef<number>(performance.now());
 
@@ -209,22 +236,38 @@ const App: React.FC = () => {
     if (gameState === GameState.Playing) {
       canvasRef.current?.focus();
     } 
-    if (gameState !== oldGameState && 
-        (oldGameState === GameState.StartMenu || oldGameState === GameState.Paused || oldGameState === GameState.CharacterSelection || oldGameState === GameState.DebugMenu)) {
-      if (gameState === GameState.SkillsInfo || 
-          gameState === GameState.Leaderboard || 
-          gameState === GameState.ActiveSkillsDisplay ||
-          gameState === GameState.DebugMenu ||
-          gameState === GameState.CharacterSelection) {
-        previousGameStateRef.current = oldGameState;
-      }
-    }
-    if (oldGameState === GameState.CosmeticSelectionModal && gameState === GameState.CharacterSelection) {
-        previousGameStateRef.current = GameState.CosmeticSelectionModal;
-    }
+    if (gameState !== oldGameState) {
+        const statesThatCanSetPrevious = [
+            GameState.StartMenu, GameState.Paused, GameState.CharacterSelection, 
+            GameState.DebugMenu, GameState.Shop
+        ];
+        const statesThatNeedPrevious = [
+            GameState.SkillsInfo, GameState.Leaderboard, GameState.ActiveSkillsDisplay,
+            GameState.DebugMenu, GameState.CharacterSelection, GameState.Shop, GameState.CosmeticSelectionModal
+        ];
 
-
+        if (statesThatCanSetPrevious.includes(oldGameState) && statesThatNeedPrevious.includes(gameState)) {
+            previousGameStateRef.current = oldGameState;
+        }
+        if (oldGameState === GameState.CosmeticSelectionModal && gameState === GameState.CharacterSelection) {
+            previousGameStateRef.current = GameState.Shop; 
+        }
+    }
   }, [gameState]);
+
+  const [screenShake, setScreenShake] = useState({ active: false, intensity: 0, duration: 0, startTime: 0 });
+  const [borderFlash, setBorderFlash] = useState({ active: false, duration: 0, startTime: 0 });
+
+  useEffect(() => {
+    if (borderFlash.active) {
+        gameContainerRef.current?.classList.add('border-flash-active');
+        const timer = setTimeout(() => {
+            gameContainerRef.current?.classList.remove('border-flash-active');
+            setBorderFlash(prev => ({ ...prev, active: false }));
+        }, borderFlash.duration);
+        return () => clearTimeout(timer);
+    }
+  }, [borderFlash]);
 
 
   const [displayedSkills, setDisplayedSkills] = useState<DisplayedSkillInfo[]>([]);
@@ -234,85 +277,71 @@ const App: React.FC = () => {
   const lastClearedWaveRef = useRef<number>(0);
   const hasSkippedWaveRef = useRef<boolean>(false);
 
-  // Audio state (functionality is disabled via audioManager.ts)
   const [isMuted, setIsMuted] = useState(true); 
   const [volume, setVolume] = useState(0); 
   const [isDraggingVolumeSlider, setIsDraggingVolumeSlider] = useState(false);
 
   useEffect(() => {
-    // Audio loading logic (currently disabled)
   }, []);
 
   const handleToggleMute = useCallback(() => {
-    // Audio toggle logic (currently disabled)
   }, []);
 
   const handleVolumeChange = useCallback((newVolume: number) => {
-    // Audio volume change logic (currently disabled)
   }, []);
 
   const PIXEL_FONT_FAMILY = "'Press Start 2P', monospace";
 
-  const saveCosmeticUnlocks = useCallback((data: CosmeticUnlocksData) => {
-    localStorage.setItem(COSMETIC_STORAGE_KEY, JSON.stringify(data));
+  const loadCosmeticData = useCallback(() => {
+    const storedData = localStorage.getItem(COSMETIC_DATA_KEY);
+    if (storedData) {
+      const loaded = JSON.parse(storedData) as CosmeticUnlocksData;
+      setPlayerCoins(loaded.playerCoins || 0);
+      const defaultItems = [DEFAULT_HAT_ID, DEFAULT_STAFF_ID];
+      const combinedPurchased = new Set([...(loaded.purchasedItemIds || []), ...defaultItems]);
+      setPurchasedCosmeticIds(Array.from(combinedPurchased));
+      setPurchasedPermanentSkillsState(loaded.purchasedPermanentSkills || {}); // Load purchased skill levels
+    } else {
+      setPurchasedCosmeticIds([DEFAULT_HAT_ID, DEFAULT_STAFF_ID]);
+      setPlayerCoins(0);
+      setPurchasedPermanentSkillsState({});
+    }
   }, []);
 
-  const isCosmeticUnlocked = useCallback((itemId: string, bossesDefeatedCount: number): boolean => {
-    const item = [...ALL_HATS, ...ALL_STAFFS].find(i => i.id === itemId);
-    if (!item) return false;
-    if (item.unlockWave === 0) return true; 
-
-    const itemIndexInUnlockOrder = ORDERED_UNLOCKABLE_COSMETICS.findIndex(unlockable => unlockable.id === itemId);
-    if (itemIndexInUnlockOrder === -1) return false; 
-
-    return bossesDefeatedCount > itemIndexInUnlockOrder; 
+  const saveCosmeticData = useCallback(() => {
+    const data: CosmeticUnlocksData = {
+      playerCoins: playerCoinsRef.current,
+      purchasedItemIds: purchasedCosmeticIdsRef.current,
+      purchasedPermanentSkills: purchasedPermanentSkillsRef.current, // Save purchased skill levels
+    };
+    localStorage.setItem(COSMETIC_DATA_KEY, JSON.stringify(data));
   }, []);
 
   useEffect(() => {
-    const storedCosmetics = localStorage.getItem(COSMETIC_STORAGE_KEY);
-    if (storedCosmetics) {
-      const loadedData = JSON.parse(storedCosmetics) as CosmeticUnlocksData;
-      if (typeof loadedData.bossesDefeatedForCosmetics !== 'number') {
-        setCosmeticUnlocksData({ bossesDefeatedForCosmetics: 0 });
-      } else {
-        setCosmeticUnlocksData(loadedData);
-      }
-      const initialBossesDefeated = typeof loadedData.bossesDefeatedForCosmetics === 'number' ? loadedData.bossesDefeatedForCosmetics : 0;
-      const defaultHat = ALL_HATS.find(h => h.unlockWave === 0 && isCosmeticUnlocked(h.id, initialBossesDefeated));
-      const defaultStaff = ALL_STAFFS.find(s => s.unlockWave === 0 && isCosmeticUnlocked(s.id, initialBossesDefeated));
-      setSelectedHatIdForSelectionScreen(defaultHat?.id || ALL_HATS[0]?.id || null);
-      setSelectedStaffIdForSelectionScreen(defaultStaff?.id || ALL_STAFFS[0]?.id || null);
-    } else {
-        setCosmeticUnlocksData({ bossesDefeatedForCosmetics: 0 });
-        const defaultHat = ALL_HATS.find(h => h.unlockWave === 0);
-        const defaultStaff = ALL_STAFFS.find(s => s.unlockWave === 0);
-        setSelectedHatIdForSelectionScreen(defaultHat?.id || null);
-        setSelectedStaffIdForSelectionScreen(defaultStaff?.id || null);
-    }
-  }, [isCosmeticUnlocked]);
+    loadCosmeticData();
+  }, [loadCosmeticData]);
 
-  const handleBossDefeatedForCosmetics = useCallback((): CosmeticItem | null => {
-    const currentDefeatedCount = cosmeticUnlocksDataRef.current.bossesDefeatedForCosmetics;
-    let newlyUnlockedItem: CosmeticItem | null = null;
+  useEffect(() => {
+    saveCosmeticData();
+  }, [playerCoins, purchasedCosmeticIds, purchasedPermanentSkillsState, saveCosmeticData]);
 
-    if (currentDefeatedCount < ORDERED_UNLOCKABLE_COSMETICS.length) {
-      newlyUnlockedItem = ORDERED_UNLOCKABLE_COSMETICS[currentDefeatedCount];
-    }
-    
-    const newTotalBossesDefeated = currentDefeatedCount + 1;
-    setCosmeticUnlocksData({ bossesDefeatedForCosmetics: newTotalBossesDefeated });
-    saveCosmeticUnlocks({ bossesDefeatedForCosmetics: newTotalBossesDefeated });
-    
-    return newlyUnlockedItem;
-  }, [saveCosmeticUnlocks]);
 
-  const getUnlockedHats = useCallback((): HatItem[] => {
-    return ALL_HATS.filter(hat => isCosmeticUnlocked(hat.id, cosmeticUnlocksDataRef.current.bossesDefeatedForCosmetics));
-  }, [isCosmeticUnlocked]);
+  const isCosmeticPurchased = useCallback((itemId: string): boolean => {
+    return purchasedCosmeticIdsRef.current.includes(itemId);
+  }, []);
 
-  const getUnlockedStaffs = useCallback((): StaffItem[] => {
-    return ALL_STAFFS.filter(staff => isCosmeticUnlocked(staff.id, cosmeticUnlocksDataRef.current.bossesDefeatedForCosmetics));
-  }, [isCosmeticUnlocked]);
+  const getPermanentSkillLevel = useCallback((skillId: string): number => {
+    return purchasedPermanentSkillsRef.current[skillId]?.level || 0;
+  }, []);
+  
+  const getPurchasableHats = useCallback((): HatItem[] => {
+    return ALL_HATS_SHOP.filter(hat => isCosmeticPurchased(hat.id) && hat.effectDescription !== 'Visual apenas.');
+  }, [isCosmeticPurchased]);
+
+  const getPurchasableStaffs = useCallback((): StaffItem[] => {
+    return ALL_STAFFS_SHOP.filter(staff => isCosmeticPurchased(staff.id) && staff.effectDescription !== 'Dispara um projétil em linha reta.');
+  }, [isCosmeticPurchased]);
+
 
   const drawPlayerPreview = useCallback(() => {
     const ctx = previewCanvasRef.current?.getContext('2d');
@@ -341,7 +370,6 @@ const App: React.FC = () => {
         ctx.fill();
     }
 
-
     const previewPlayer: Player = {
         ...getDefaultPlayerState("Preview"),
         x: (canvasWidthForPreview - previewPlayerRenderWidth) / 2, 
@@ -357,13 +385,13 @@ const App: React.FC = () => {
     drawPlayerCanvas(ctx, previewPlayer, 0); 
 
     if (previewPlayer.selectedStaffId) {
-        const staffItem = ALL_STAFFS.find(s => s.id === previewPlayer.selectedStaffId);
+        const staffItem = ALL_STAFFS_SHOP.find(s => s.id === previewPlayer.selectedStaffId);
         if (staffItem) {
             drawStaffCanvas(ctx, staffItem, previewPlayer, 0, null, null, canvasWidthForPreview, canvasHeightForPreview);
         }
     }
     if (previewPlayer.selectedHatId) {
-        const hatItem = ALL_HATS.find(h => h.id === previewPlayer.selectedHatId);
+        const hatItem = ALL_HATS_SHOP.find(h => h.id === previewPlayer.selectedHatId);
         if (hatItem) {
             drawHatCanvas(ctx, hatItem, previewPlayer, 0);
         }
@@ -372,7 +400,7 @@ const App: React.FC = () => {
   }, [selectedHatIdForSelectionScreen, selectedStaffIdForSelectionScreen]);
 
   useEffect(() => {
-    if (gameState === GameState.CharacterSelection || gameState === GameState.CosmeticSelectionModal) {
+    if (gameState === GameState.CharacterSelection || gameState === GameState.CosmeticSelectionModal || gameState === GameState.Shop) {
         drawPlayerPreview();
     }
   }, [gameState, selectedHatIdForSelectionScreen, selectedStaffIdForSelectionScreen, drawPlayerPreview]);
@@ -454,7 +482,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (gameState === GameState.StartMenu || gameState === GameState.DebugMenu || gameState === GameState.GameOver) {
+    if (gameState === GameState.StartMenu || gameState === GameState.DebugMenu || gameState === GameState.GameOver || gameState === GameState.Shop) {
         loadLeaderboardFromService(playerRef.current.isAdmin && (gameState === GameState.DebugMenu || gameState === GameState.GameOver) );
     }
   }, [gameState, loadLeaderboardFromService]);
@@ -523,8 +551,10 @@ const App: React.FC = () => {
     } else if (playerRef.current.isAdmin) {
       saveScoreToLeaderboardService(playerRef.current.nickname, currentWave, gameTime, true);
     }
+    setPlayer(p => ({...p, coins: playerCoinsRef.current})); 
+    saveCosmeticData(); 
     setGameState(GameState.GameOver);
-  }, [currentWave, gameTime, saveScoreToLeaderboardService]);
+  }, [currentWave, gameTime, saveScoreToLeaderboardService, saveCosmeticData]);
 
   const gameContextForUpgrades = useRef({
     enableFragmentation: null as ((enemy: Enemy) => void) | null,
@@ -575,6 +605,16 @@ const App: React.FC = () => {
         particleVx = (Math.random() - 0.5) * speed * 0.5; 
         particleLife *= 0.7;
         particleWidth = sizeVariance * (0.6 + Math.random() * 0.4);
+      } else if (type === 'coin_pickup') {
+        particleVy = -Math.abs(Math.sin(angle) * currentSpeed * 0.3) - Math.random() * speed * 0.1;
+        particleVx = (Math.random() - 0.5) * speed * 0.1;
+        particleLife *= 0.5;
+        particleWidth = sizeVariance * (0.7 + Math.random() * 0.3);
+      } else if (type === 'dash_trail') {
+        particleVy = (Math.random() - 0.5) * speed * 0.2; 
+        particleVx = (Math.random() - 0.5) * speed * 0.2; 
+        particleLife *= 0.6;
+        particleWidth = sizeVariance * (0.4 + Math.random()*0.3);
       }
 
 
@@ -614,11 +654,12 @@ const App: React.FC = () => {
     });
 
     if (playerRef.current.selectedHatId === 'hat_uncommon') {
-        const uncommonOnly = filteredAvailable.filter(u => u.tier === 'incomum');
-        if (uncommonOnly.length > 0) {
-            filteredAvailable = uncommonOnly;
-        }
+        const uncommonAndRare = filteredAvailable.filter(u => u.tier === 'incomum' || u.tier === 'raro');
+        if (uncommonAndRare.length > 0) {
+            filteredAvailable = uncommonAndRare;
+        } // If no uncommon/rare, fallback to common
     }
+
 
     for (let i = 0; i < actualChoicesToOffer && filteredAvailable.length > 0; i++) {
       const randomIndex = Math.floor(Math.random() * filteredAvailable.length);
@@ -630,7 +671,7 @@ const App: React.FC = () => {
 
   const handleEnemyDeath = useCallback((killedEnemy: Enemy) => {
     const randomHue = Math.random() * 360;
-    const particleColor = `hsl(${randomHue}, 90%, 70%)`; // Generate a random vibrant HSL color
+    const particleColor = `hsl(${randomHue}, 90%, 70%)`; 
 
     createParticleEffect(
         killedEnemy.x + killedEnemy.width/2, 
@@ -666,17 +707,43 @@ const App: React.FC = () => {
         setEnemyProjectiles([]);
         setEnemies(prevEnemies => prevEnemies.filter(e => !e.isSummonedByBoss));
         
-        const newlyUnlockedItem = handleBossDefeatedForCosmetics();
-        if (newlyUnlockedItem) {
-            setCurrentUnlockPopupItems([newlyUnlockedItem]);
-            previousGameStateRef.current = GameState.Playing; 
-            setGameState(GameState.UnlockNotificationPopup);
+        const bossIndexInSequence = ALL_BOSS_WAVES.indexOf(currentWave);
+        if (bossIndexInSequence !== -1) { // Ensure currentWave is a defined boss wave
+            const coinsDropped = (bossIndexInSequence + 1) * 10; // Wave 5 (index 0) = 10, Wave 10 (index 1) = 20 etc.
+            setPlayerCoins(prevCoins => prevCoins + coinsDropped);
+            const coinText: FloatingText = {
+                id: `bossCoin-${performance.now()}`,
+                text: `+${coinsDropped} Moedas!`,
+                x: killedEnemy.x + killedEnemy.width / 2,
+                y: killedEnemy.y - 20,
+                vy: -90, life: 2, initialLife: 2, color: "#FFDF00", fontSize: 14,
+            };
+            setFloatingTexts(prevFt => [...prevFt, coinText]);
+            createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, coinsDropped * 2, '#FFDF00', 15, 200, 1.0, 'coin_pickup');
+        }
+
+    } else if (!killedEnemy.isSummonedByBoss) { 
+        const baseDropChance = 0.10;
+        const totalDropChance = baseDropChance + (playerRef.current.coinDropBonus || 0);
+        if (Math.random() < totalDropChance) { 
+            setPlayerCoins(prevCoins => prevCoins + 1);
+             const coinText: FloatingText = {
+                id: `coin-${performance.now()}`,
+                text: "+1 Moeda!",
+                x: killedEnemy.x + killedEnemy.width / 2,
+                y: killedEnemy.y - 10,
+                vy: -80, life: 1, initialLife: 1, color: "#FFD700", fontSize: 10,
+            };
+            setFloatingTexts(prevFt => [...prevFt, coinText]);
+            createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, 5, '#FFD700', 10, 100, 0.7, 'coin_pickup');
         }
     }
+
 
     if (!killedEnemy.isSummonedByBoss) {
         setPlayer(p => {
             let xpEarned = killedEnemy.expValue;
+            xpEarned *= (p.xpBonus || 1); // Apply XP bonus
             if (p.isAdmin && adminConfigRef.current.xpMultiplier) {
                 xpEarned *= adminConfigRef.current.xpMultiplier;
             }
@@ -710,7 +777,7 @@ const App: React.FC = () => {
             return updatedPlayerState;
         });
     }
-  }, [gameContextForUpgrades, handleLevelUp, createParticleEffect, currentWave, handleBossDefeatedForCosmetics, adminConfigRef]);
+  }, [gameContextForUpgrades, handleLevelUp, createParticleEffect, currentWave, adminConfigRef, saveCosmeticData]);
 
   gameContextForUpgrades.activateThunderbolts = (boltCountFromApply: number, interval: number, targetX?: number, targetY?: number) => {
     if (interval > 0 && !targetX && !targetY) {
@@ -968,6 +1035,9 @@ const App: React.FC = () => {
           }
 
           const isCrit = Math.random() < playerRef.current.critChance;
+          let damageTextColor = "#FFFFFF";
+          let showDamageNumber = true;
+
           if (isCrit) {
             damageDealt *= playerRef.current.critMultiplier;
             const newCritText: FloatingText = {
@@ -978,7 +1048,30 @@ const App: React.FC = () => {
               vy: -88, life: 0.7, initialLife: 0.7, color: "#FF00FF", fontSize: 10, 
             };
             setFloatingTexts(prev => [...prev, newCritText]);
+            showDamageNumber = false; 
           }
+          
+          let enemyAfterHit = { ...enemy };
+          if (playerRef.current.appliesBurn && Math.random() < playerRef.current.appliesBurn.chance) {
+             enemyAfterHit = applyBurnEffect(enemyAfterHit, playerRef.current);
+             showDamageNumber = false; // Don't show regular number if burn applied text will show
+          }
+          if (playerRef.current.appliesChill && Math.random() < playerRef.current.appliesChill.chance) {
+             enemyAfterHit = applyChillEffect(enemyAfterHit, playerRef.current);
+             showDamageNumber = false; // Don't show regular number if chill applied text will show
+          }
+
+          if (showDamageNumber) {
+             const damageText: FloatingText = {
+                id: `dmg-${performance.now()}-${enemy.id}`,
+                text: `${Math.round(damageDealt)}`,
+                x: enemy.x + enemy.width / 2,
+                y: enemy.y,
+                vy: -77, life: 0.65, initialLife: 0.65, color: damageTextColor, fontSize: 9,
+            };
+            setFloatingTexts(prev => [...prev, damageText]);
+          }
+
 
           createParticleEffect(
             proj.x + proj.width / 2,
@@ -986,15 +1079,8 @@ const App: React.FC = () => {
             6, proj.color, SPRITE_PIXEL_SIZE * 3, 90 * SPRITE_PIXEL_SIZE, 0.25, 'generic' 
           );
 
-          let enemyAfterHit = { ...enemy };
+          
           let newHp = enemy.hp - damageDealt;
-
-          if (playerRef.current.appliesBurn && Math.random() < playerRef.current.appliesBurn.chance) {
-             enemyAfterHit = applyBurnEffect(enemyAfterHit, playerRef.current);
-          }
-          if (playerRef.current.appliesChill && Math.random() < playerRef.current.appliesChill.chance) {
-             enemyAfterHit = applyChillEffect(enemyAfterHit, playerRef.current);
-          }
           
           if (proj.hitsLeft !== undefined && proj.hitsLeft > 0) {
               proj.hitsLeft--; 
@@ -1044,6 +1130,11 @@ const App: React.FC = () => {
 
         createParticleEffect(proj.x, proj.y, 10, proj.color, 20, 150, 0.4, 'generic'); 
         
+        if (currentPlayer.isInvincible && currentPlayer.invincibilityDuration === (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) && performance.now() < currentPlayer.lastHitTime + (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION)) {
+            createParticleEffect(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 25, '#FFFFFF', 30, 180, 0.5, 'shield_hit');
+            return false;
+        }
+        
         let effectiveDefense = currentPlayer.defense;
         if(currentPlayer.isAdmin && adminConfigRef.current.defenseBoost !== undefined) {
             effectiveDefense = Math.min(0.95, currentPlayer.defense + (adminConfigRef.current.defenseBoost || 0));
@@ -1053,30 +1144,36 @@ const App: React.FC = () => {
 
         if (currentPlayer.shieldMaxHp && currentPlayer.shieldCurrentHp && currentPlayer.shieldCurrentHp > 0) {
             setPlayer(p => {
-              const newShieldHp = Math.max(0, (p.shieldCurrentHp || 0) - 1);
-              return {
-                ...p,
-                shieldCurrentHp: newShieldHp,
-                shieldLastDamagedTime: performance.now(),
-              }
+              const newShieldHp = Math.max(0, (p.shieldCurrentHp || 0) - 1); // Shield takes 1 "hit point" per projectile
+              return { ...p, shieldCurrentHp: newShieldHp, shieldLastDamagedTime: performance.now() }
             });
             createParticleEffect(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 20, '#00FFFF', 25, 100 * 2.2, 0.4, 'shield_hit'); 
             return false;
         }
 
-        if (currentPlayer.isInvincible) return true;
+        if (currentPlayer.isInvincible && performance.now() < currentPlayer.lastHitTime + currentPlayer.invincibilityDuration) return true;
 
         setPlayer(p => {
           const newHp = p.hp - damageTakenBase;
+          let shouldTriggerDamageEffects = false;
+          if (newHp < p.hp) { 
+            shouldTriggerDamageEffects = true;
+          }
+
+          if (shouldTriggerDamageEffects) {
+            setScreenShake({ active: true, intensity: 8, duration: 200, startTime: performance.now() });
+            setBorderFlash({ active: true, duration: 300, startTime: performance.now() });
+          }
+          
           if (newHp <= 0) {
             if (p.revives > 0) {
               createParticleEffect(p.x + p.width/2, p.y + p.height/2, 100, '#FFFFFF', 83, 600, 1.2, 'generic'); 
-              return {...p, hp: p.maxHp / 2, revives: p.revives - 1, isInvincible: true, lastHitTime: performance.now() };
+              return {...p, hp: p.maxHp / 2, revives: p.revives - 1, isInvincible: true, lastHitTime: performance.now(), invincibilityDuration: 500 };
             }
             handleGameOver();
             return { ...p, hp: 0 };
           }
-          return { ...p, hp: newHp, isInvincible: true, lastHitTime: performance.now() };
+          return { ...p, hp: newHp, isInvincible: true, lastHitTime: performance.now(), invincibilityDuration: 500 };
         });
         return false;
       }
@@ -1085,11 +1182,10 @@ const App: React.FC = () => {
   }, [handleEnemyDeath, applyBurnEffect, applyChillEffect, createParticleEffect, handleGameOver, handleExplosion, adminConfigRef]);
 
   const update = useCallback((deltaTime: number) => {
-    if (gameStateRef.current === GameState.UnlockNotificationPopup) {
+    if (gameStateRef.current !== GameState.Playing) {
         lastFrameTimeRef.current = performance.now(); 
         return;
     }
-    if (gameStateRef.current !== GameState.Playing) return;
 
     const currentDeltaTime = Math.min(deltaTime, 0.1); 
     setGameTime(prev => prev + currentDeltaTime);
@@ -1121,6 +1217,36 @@ const App: React.FC = () => {
     }
     if (playerUpdateResult.updatedPlayer.justLanded) {
         createParticleEffect(playerUpdateResult.updatedPlayer.x + playerUpdateResult.updatedPlayer.width / 2, playerUpdateResult.updatedPlayer.y + playerUpdateResult.updatedPlayer.height, 20, '#606470', 12, 100, 0.5, 'player_land_dust'); 
+    }
+    if (playerUpdateResult.updatedPlayer.justDashed) {
+        const dashDirectionVec = playerUpdateResult.updatedPlayer.dashDirection === 'right' ? 1 : -1;
+        for (let i = 0; i < 15; i++) {
+            const angleOffset = (Math.random() - 0.5) * Math.PI * 0.4; 
+            const angle = Math.atan2(Math.sin(angleOffset), -dashDirectionVec * Math.cos(angleOffset) );
+            const speed = 250 + Math.random() * 150;
+            createParticleEffect(
+                playerUpdateResult.updatedPlayer.x + playerUpdateResult.updatedPlayer.width / 2,
+                playerUpdateResult.updatedPlayer.y + playerUpdateResult.updatedPlayer.height / 2,
+                1, 
+                `rgba(173, 216, 230, ${0.6 + Math.random() * 0.3})`, 
+                10 + Math.random() * 7,
+                speed,
+                0.35 + Math.random() * 0.25,
+                'dash_trail'
+            );
+        }
+    }
+    if (playerUpdateResult.updatedPlayer.isDashing && Math.random() < 0.8) { 
+        createParticleEffect(
+            playerUpdateResult.updatedPlayer.x + playerUpdateResult.updatedPlayer.width / 2,
+            playerUpdateResult.updatedPlayer.y + playerUpdateResult.updatedPlayer.height / 2,
+            1,
+            `rgba(200, 220, 255, ${0.4 + Math.random() * 0.2})`,
+            7 + Math.random() * 5,
+            120 + Math.random() * 60, 
+            0.25 + Math.random() * 0.15,
+            'dash_trail'
+        );
     }
 
 
@@ -1251,9 +1377,7 @@ const App: React.FC = () => {
       if (enemiesSpawnedThisWaveCount >= enemiesToSpawnThisWave) {
         setWaveStatus('lutando');
       }
-      // "Invasão Iminente" message is covered by "Onda X Chegando..."
     } else if (waveStatus === 'lutando') {
-      // Wave progress bar is drawn in `draw` function.
       const nonSummonedEnemies = enemiesRef.current.filter(e => !e.isSummonedByBoss).length;
       if (nonSummonedEnemies === 0 && enemiesSpawnedThisWaveCount >= enemiesToSpawnThisWave) {
         const newlyClearedWave = currentWave;
@@ -1278,7 +1402,7 @@ const App: React.FC = () => {
       x: p.x + (p.vx ?? 0) * currentDeltaTime,
       y: p.y + (p.vy ?? 0) * currentDeltaTime,
       life: p.life - currentDeltaTime,
-      vy: (p.vy ?? 0) + (GRAVITY/ (p.particleType === 'player_double_jump' || p.particleType === 'player_land_dust' ? 8 : 4) ) * currentDeltaTime 
+      vy: (p.vy ?? 0) + (GRAVITY/ (p.particleType === 'player_double_jump' || p.particleType === 'player_land_dust' || p.particleType === 'coin_pickup' || p.particleType === 'dash_trail' ? 8 : 4) ) * currentDeltaTime 
     })).filter(p => p.life > 0));
 
     setFloatingTexts(prevTexts =>
@@ -1299,6 +1423,23 @@ const App: React.FC = () => {
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx) return;
+
+    let shakeX = 0;
+    let shakeY = 0;
+    if (screenShake.active && canvasRef.current) {
+        const elapsed = performance.now() - screenShake.startTime;
+        if (elapsed < screenShake.duration) {
+            const progress = elapsed / screenShake.duration;
+            const currentIntensity = screenShake.intensity * (1 - progress); 
+            shakeX = (Math.random() - 0.5) * 2 * currentIntensity;
+            shakeY = (Math.random() - 0.5) * 2 * currentIntensity;
+            ctx.save(); // Save before shake translation
+            ctx.translate(shakeX, shakeY);
+        } else {
+            setScreenShake(prev => ({ ...prev, active: false }));
+        }
+    }
+
 
     skillIconRectsOnCanvasRef.current = [];
     ctx.imageSmoothingEnabled = true; 
@@ -1336,8 +1477,8 @@ const App: React.FC = () => {
         gameStateRef.current !== GameState.DebugMenu &&
         gameStateRef.current !== GameState.ActiveSkillsDisplay &&
         gameStateRef.current !== GameState.CharacterSelection &&
-        gameStateRef.current !== GameState.CosmeticSelectionModal &&
-        gameStateRef.current !== GameState.UnlockNotificationPopup
+        gameStateRef.current !== GameState.Shop &&
+        gameStateRef.current !== GameState.CosmeticSelectionModal
       ) {
         platforms.forEach(p => { 
             if (!p.isVisible || p.currentAlpha < 0.1) return; 
@@ -1431,10 +1572,22 @@ const App: React.FC = () => {
         }
 
         const currentPlayer = playerRef.current;
+
+        ctx.save(); // Save before potential player alpha change for blinking
+        if (currentPlayer.isInvincible && currentPlayer.invincibilityDuration === 500) { // Standard hit invincibility
+            if (Math.floor(gameTime * 15) % 2 === 0) { // Blink ~7.5 times per second
+                ctx.globalAlpha = 0.35; 
+            } else {
+                ctx.globalAlpha = 0.85; 
+            }
+        } else {
+            ctx.globalAlpha = 1.0;
+        }
+
         drawPlayerCanvas(ctx, currentPlayer, gameTime); 
 
         if (currentPlayer.selectedStaffId) {
-            const staffItem = ALL_STAFFS.find(s => s.id === currentPlayer.selectedStaffId);
+            const staffItem = ALL_STAFFS_SHOP.find(s => s.id === currentPlayer.selectedStaffId);
             if (staffItem) {
                 drawStaffCanvas(
                     ctx, 
@@ -1450,11 +1603,12 @@ const App: React.FC = () => {
         }
 
         if (currentPlayer.selectedHatId) {
-            const hatItem = ALL_HATS.find(h => h.id === currentPlayer.selectedHatId);
+            const hatItem = ALL_HATS_SHOP.find(h => h.id === currentPlayer.selectedHatId);
             if (hatItem) {
                 drawHatCanvas(ctx, hatItem, currentPlayer, gameTime); 
             }
         }
+        ctx.restore(); // Restore alpha after player, hat, staff
 
         if (currentPlayer.shieldMaxHp && currentPlayer.shieldCurrentHp && currentPlayer.shieldCurrentHp > 0) {
             const shieldCenterX = currentPlayer.x + currentPlayer.width / 2;
@@ -1608,6 +1762,17 @@ const App: React.FC = () => {
                     ctx.lineWidth = radius*0.2;
                     ctx.stroke();
                     break;
+                case 'coin_pickup':
+                    ctx.font = `bold ${radius*2}px ${PIXEL_FONT_FAMILY}`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('💰', p.x, p.y);
+                    break;
+                case 'dash_trail':
+                     ctx.beginPath();
+                     ctx.ellipse(p.x, p.y, radius * (1 + Math.random()*0.5), radius * (0.5 + Math.random()*0.3), Math.random() * Math.PI, 0, Math.PI * 2);
+                     ctx.fill();
+                    break;
                 case 'player_double_jump':
                 case 'player_land_dust':
                 case 'shield_hit':
@@ -1662,6 +1827,8 @@ const App: React.FC = () => {
             if (ft.color === 'red' || ft.color === '#FF00FF') { r = 255; g = 0; b = 255; } 
             else if (ft.color === '#FFA500' || ft.color === '#FF8C00') { r = 255; g = 165; b = 0; } 
             else if (ft.color === '#00FFFF' || ft.color === '#ADD8E6') { r = 0; g = 255; b = 255; } 
+            else if (ft.color === '#FFD700' || ft.color === '#FFDF00') { r = 255; g = 215; b = 0; }
+            else if (ft.color === '#FFFFFF') { r = 255; g = 255; b = 255; }
           ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha})`;
           ctx.shadowColor = `rgba(${r},${g},${b}, ${alpha*0.7})`;
           ctx.shadowBlur = 3;
@@ -1706,10 +1873,20 @@ const App: React.FC = () => {
         ctx.fillStyle = '#0A0F1A'; 
         ctx.fillText(`EXP: ${currentPlayer.exp}/${currentPlayer.xpToNextLevel}`, BAR_X + BAR_WIDTH / 2, BAR_Y_OFFSET_EXP + BAR_HEIGHT / 2);
         
+        const COIN_TEXT_Y = 120 * (CANVAS_HEIGHT / 650);
+        ctx.font = `bold ${FONT_SIZE_MEDIUM}px ${PIXEL_FONT_FAMILY}`;
+        ctx.fillStyle = '#FFD700'; 
+        ctx.textAlign = 'left';
+        ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 3;
+        ctx.fillText(`Moedas: ${playerCoinsRef.current} 💰`, BAR_X, COIN_TEXT_Y);
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
 
         const TEXT_Y_LEVEL = 75 * (CANVAS_HEIGHT / 650);
         const TEXT_Y_NICKNAME = 90 * (CANVAS_HEIGHT / 650);
         const TEXT_Y_ADMIN_TAG = 105 * (CANVAS_HEIGHT / 650);
+        const DASH_COOLDOWN_BAR_Y = TEXT_Y_ADMIN_TAG + 30 * (CANVAS_HEIGHT / 650); 
+
         ctx.textBaseline = 'alphabetic'; ctx.fillStyle = HUD_TEXT_COLOR;
         ctx.font = `${FONT_SIZE_MEDIUM}px ${PIXEL_FONT_FAMILY}`; ctx.textAlign = 'left';
         ctx.shadowColor = HUD_TEXT_COLOR; ctx.shadowBlur = 3;
@@ -1721,6 +1898,35 @@ const App: React.FC = () => {
           ctx.fillText(`(Debug)`, BAR_X, TEXT_Y_ADMIN_TAG);
         }
         ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+        if (currentPlayer.hasDashSkill) {
+            const dashCooldownBarWidth = BAR_WIDTH * 0.6; 
+            const dashCooldownBarHeight = BAR_HEIGHT * 0.8;
+
+            ctx.fillStyle = BAR_BG_COLOR;
+            ctx.fillRect(BAR_X - BAR_BORDER, DASH_COOLDOWN_BAR_Y - BAR_BORDER, dashCooldownBarWidth + BAR_BORDER * 2, dashCooldownBarHeight + BAR_BORDER * 2);
+
+            const dashReady = performance.now() - (currentPlayer.lastDashTimestamp || 0) > (currentPlayer.dashCooldownTime || 30) * 1000;
+            let dashProgress = 1;
+            if (!dashReady) {
+                dashProgress = (performance.now() - (currentPlayer.lastDashTimestamp || 0)) / ((currentPlayer.dashCooldownTime || 30) * 1000);
+            }
+
+            ctx.fillStyle = dashReady ? '#00FF7F' : '#FFD700'; 
+            ctx.fillRect(BAR_X, DASH_COOLDOWN_BAR_Y, dashCooldownBarWidth * dashProgress, dashCooldownBarHeight);
+
+            ctx.strokeStyle = BAR_BORDER_COLOR; ctx.lineWidth = BAR_BORDER;
+            ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = 3;
+            ctx.strokeRect(BAR_X - BAR_BORDER, DASH_COOLDOWN_BAR_Y - BAR_BORDER, dashCooldownBarWidth + BAR_BORDER * 2, dashCooldownBarHeight + BAR_BORDER * 2);
+            ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+            ctx.fillStyle = dashReady ? '#0A0F1A' : HUD_TEXT_COLOR;
+            ctx.font = `${FONT_SIZE_SMALL -1}px ${PIXEL_FONT_FAMILY}`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const dashCooldownRemaining = (((currentPlayer.dashCooldownTime || 30) * 1000 - (performance.now() - (currentPlayer.lastDashTimestamp || 0)))/1000);
+            ctx.fillText(dashReady ? "Dash!" : `Espera: ${Math.max(0, dashCooldownRemaining).toFixed(1)}s`, BAR_X + dashCooldownBarWidth / 2, DASH_COOLDOWN_BAR_Y + dashCooldownBarHeight / 2);
+        }
+
 
         const TEXT_Y_WAVE_INFO_TOP = 28 * (CANVAS_HEIGHT / 650);
         const TEXT_Y_TIME_INFO_TOP = 50 * (CANVAS_HEIGHT / 650);
@@ -1744,14 +1950,13 @@ const App: React.FC = () => {
             ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
         }
 
-        // Wave Progress Bar
         const WAVE_PROGRESS_BAR_WIDTH = CANVAS_WIDTH * 0.4;
         const WAVE_PROGRESS_BAR_HEIGHT = 18 * (CANVAS_HEIGHT / 650);
         const WAVE_PROGRESS_BAR_X = (CANVAS_WIDTH - WAVE_PROGRESS_BAR_WIDTH) / 2;
-        const WAVE_PROGRESS_BAR_Y = 15 * (CANVAS_HEIGHT / 650); // Moved to top
+        const WAVE_PROGRESS_BAR_Y = 15 * (CANVAS_HEIGHT / 650); 
         const WAVE_PROGRESS_BAR_BG_COLOR = 'rgba(10, 20, 50, 0.7)';
-        const WAVE_PROGRESS_BAR_FILL_COLOR = '#00FFFF'; // Cyan
-        const WAVE_PROGRESS_BAR_BORDER_COLOR = '#4A00E0'; // Purple glow
+        const WAVE_PROGRESS_BAR_FILL_COLOR = '#00FFFF'; 
+        const WAVE_PROGRESS_BAR_BORDER_COLOR = '#4A00E0'; 
         const WAVE_PROGRESS_BAR_BORDER_WIDTH = 2;
         const WAVE_PROGRESS_TEXT_COLOR = '#E0FFFF';
         const WAVE_PROGRESS_FONT_SIZE = FONT_SIZE_SMALL;
@@ -1780,19 +1985,17 @@ const App: React.FC = () => {
                            WAVE_PROGRESS_BAR_WIDTH + WAVE_PROGRESS_BAR_BORDER_WIDTH, 
                            WAVE_PROGRESS_BAR_HEIGHT + WAVE_PROGRESS_BAR_BORDER_WIDTH);
             ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
-            ctx.lineWidth = 1; // Reset lineWidth
+            ctx.lineWidth = 1; 
 
             ctx.font = `${WAVE_PROGRESS_FONT_SIZE}px ${PIXEL_FONT_FAMILY}`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = WAVE_PROGRESS_TEXT_COLOR;
             ctx.fillText(`Progresso da Onda: ${Math.round(waveProgressPercentage * 100)}%`, WAVE_PROGRESS_BAR_X + WAVE_PROGRESS_BAR_WIDTH / 2, WAVE_PROGRESS_BAR_Y + WAVE_PROGRESS_BAR_HEIGHT / 2);
-            ctx.textBaseline = 'alphabetic'; // Reset
+            ctx.textBaseline = 'alphabetic'; 
 
         } 
-        // Removed `else if (bottomHudMessage)` as bottomHudMessage is deprecated.
-
-
+        
         if(canvasRef.current && gameStateRef.current === GameState.Playing) {
             const rect = canvasRef.current.getBoundingClientRect();
             const displayMouseX = (mouseStateRef.current.x - rect.left) * (canvasRef.current.width / rect.width);
@@ -1833,7 +2036,12 @@ const App: React.FC = () => {
       }
       ctx.textBaseline = 'alphabetic';
     }
-  }, [gameTime, gameStateRef, platforms, centerScreenMessage, currentWave, stars, nebulae, timeToNextWaveAction, waveStatus, playerProjectiles, enemyProjectiles, particles, activeLightningBolts, displayedSkills, hoveredSkillTooltip, floatingTexts, createParticleEffect, isMuted, volume, enemiesToSpawnThisWave]); 
+
+    if (screenShake.active && (shakeX !== 0 || shakeY !== 0)) {
+        ctx.restore(); // Restore from shake translation
+    }
+
+  }, [gameTime, gameStateRef, platforms, centerScreenMessage, currentWave, stars, nebulae, timeToNextWaveAction, waveStatus, playerProjectiles, enemyProjectiles, particles, activeLightningBolts, displayedSkills, hoveredSkillTooltip, floatingTexts, createParticleEffect, isMuted, volume, enemiesToSpawnThisWave, playerCoins, screenShake]); 
 
   useEffect(() => {
     let animationFrameId: number;
@@ -1843,8 +2051,6 @@ const App: React.FC = () => {
 
       if (gameStateRef.current === GameState.Playing) {
         update(deltaTime); 
-      } else if (gameStateRef.current === GameState.UnlockNotificationPopup) {
-         lastFrameTimeRef.current = performance.now();
       } else {
         lastFrameTimeRef.current = performance.now();
       }
@@ -1898,7 +2104,7 @@ const App: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCanvasFocused = document.activeElement === canvasRef.current;
 
-      if (e.key === ' ') {
+      if (e.key === ' ' || e.key.toLowerCase() === 'shift') {
         if (gameStateRef.current === GameState.Playing || isCanvasFocused) {
           e.preventDefault();
         }
@@ -1921,7 +2127,8 @@ const App: React.FC = () => {
       if (gameStateRef.current === GameState.Playing) {
         if (e.key === 'a' || e.key === 'A') keysRef.current.a = true;
         if (e.key === 'd' || e.key === 'D') keysRef.current.d = true;
-        if (e.key === ' ' && isCanvasFocused) keysRef.current.space = true; 
+        if (e.key === ' ' && isCanvasFocused) keysRef.current.space = true;
+        if (e.key.toLowerCase() === 'shift' && isCanvasFocused && playerRef.current.hasDashSkill) keysRef.current.shift = true;
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -1932,6 +2139,7 @@ const App: React.FC = () => {
         if (e.key === 'a' || e.key === 'A') keysRef.current.a = false;
         if (e.key === 'd' || e.key === 'D') keysRef.current.d = false;
         if (e.key === ' ') keysRef.current.space = false;
+        if (e.key.toLowerCase() === 'shift') keysRef.current.shift = false;
       }
     };
 
@@ -1973,38 +2181,48 @@ const App: React.FC = () => {
     };
   }, [isDraggingVolumeSlider, handleToggleMute, handleVolumeChange]); 
 
-  const applyCosmeticEffectsToPlayer = (p: Player, hatId: string | null, staffId: string | null): Player => {
+  const applyPermanentSkillEffectsToPlayer = (p: Player): Player => {
     let tempPlayer = {...p};
-    tempPlayer.movementSpeed = tempPlayer.baseMovementSpeed;
-    tempPlayer.attackSpeed = tempPlayer.baseAttackSpeed;
-    tempPlayer.projectileDamage = tempPlayer.baseProjectileDamage;
-    tempPlayer.defense = tempPlayer.baseDefense;
+    // Reset effects that might be from skills before reapplying
     tempPlayer.canDoubleJump = false;
-    tempPlayer.projectilesAreHoming = false; 
-    tempPlayer.projectileHomingStrength = 0;
-    tempPlayer.projectilePierceCount = 0; 
-    tempPlayer.challengerHatMoreEnemies = false;
-    tempPlayer.canFreeRerollUpgrades = false;
+    tempPlayer.hasDashSkill = false;
+    tempPlayer.dashCooldownTime = 30; // Default if somehow no skill level found
+    tempPlayer.xpBonus = 1; // Default 100%
+    tempPlayer.coinDropBonus = 0; // Default 0%
 
-    if (hatId) {
-        switch(hatId) {
-            case 'hat_helmet':
-                tempPlayer.defense = Math.min(1, tempPlayer.baseDefense + 0.10);
-                tempPlayer.movementSpeed = tempPlayer.baseMovementSpeed * 0.85;
-                break;
-            case 'hat_propeller_beanie':
-                tempPlayer.canDoubleJump = true;
-                break;
-            case 'hat_challenger':
-                tempPlayer.challengerHatMoreEnemies = true;
-                break;
-            case 'hat_fedora':
-                tempPlayer.canFreeRerollUpgrades = true;
-                break;
-        }
+    // Double Jump
+    const doubleJumpLevel = getPermanentSkillLevel(SKILL_ID_DOUBLE_JUMP);
+    if (doubleJumpLevel > 0) {
+        const skillDef = PERMANENT_SKILLS_SHOP.find(s => s.id === SKILL_ID_DOUBLE_JUMP);
+        skillDef?.levels[0]?.applyEffect(tempPlayer);
     }
+
+    // Dash
+    const dashLevel = getPermanentSkillLevel(SKILL_ID_DASH);
+    if (dashLevel > 0) {
+        const skillDef = PERMANENT_SKILLS_SHOP.find(s => s.id === SKILL_ID_DASH);
+        const levelDef = skillDef?.levels.find(l => l.level === dashLevel);
+        levelDef?.applyEffect(tempPlayer);
+    }
+    
+    // XP Boost
+    const xpBoostLevel = getPermanentSkillLevel(SKILL_ID_XP_BOOST);
+    if (xpBoostLevel > 0) {
+        const skillDef = PERMANENT_SKILLS_SHOP.find(s => s.id === SKILL_ID_XP_BOOST);
+        const levelDef = skillDef?.levels.find(l => l.level === xpBoostLevel);
+        levelDef?.applyEffect(tempPlayer);
+    }
+
+    // Coin Magnet
+    const coinMagnetLevel = getPermanentSkillLevel(SKILL_ID_COIN_MAGNET);
+    if (coinMagnetLevel > 0) {
+        const skillDef = PERMANENT_SKILLS_SHOP.find(s => s.id === SKILL_ID_COIN_MAGNET);
+        const levelDef = skillDef?.levels.find(l => l.level === coinMagnetLevel);
+        levelDef?.applyEffect(tempPlayer);
+    }
+
     return tempPlayer;
-  };
+  }
 
   const resetGame = (
     playerNickname: string,
@@ -2013,7 +2231,12 @@ const App: React.FC = () => {
     selectedStaff?: string | null
   ) => {
     let newPlayerState = getDefaultPlayerState(playerNickname, selectedHat, selectedStaff);
-    newPlayerState = applyCosmeticEffectsToPlayer(newPlayerState, selectedHat, selectedStaff);
+    newPlayerState = applyHatEffect(newPlayerState, selectedHat);
+    newPlayerState = applyStaffEffectToPlayerBase(newPlayerState, selectedStaff);
+    newPlayerState = applyPermanentSkillEffectsToPlayer(newPlayerState); 
+    newPlayerState.coins = playerCoinsRef.current; 
+    newPlayerState.purchasedPermanentSkills = purchasedPermanentSkillsRef.current; 
+
 
     if (currentAdminConfig?.isAdminEnabled) {
         newPlayerState.isAdmin = true;
@@ -2025,6 +2248,11 @@ const App: React.FC = () => {
         if(currentAdminConfig.defenseBoost !== undefined && currentAdminConfig.defenseBoost >= 0){
             newPlayerState.defense = Math.min(0.95, newPlayerState.defense + currentAdminConfig.defenseBoost);
         }
+        if(currentAdminConfig.initialCoins !== undefined) {
+            newPlayerState.coins = currentAdminConfig.initialCoins;
+            setPlayerCoins(currentAdminConfig.initialCoins); 
+        }
+
 
         Object.entries(currentAdminConfig.selectedSkills).forEach(([skillId, count]) => {
             const upgrade = InitialUpgrades.find(u => u.id === skillId);
@@ -2070,8 +2298,6 @@ const App: React.FC = () => {
     setEnemiesSpawnedThisWaveCount(0);
     currentWaveConfigRef.current = INITIAL_WAVE_CONFIG;
     setCenterScreenMessage(null);
-    // setBottomHudMessage(null); // No longer needed
-
 
     lastClearedWaveRef.current = currentAdminConfig?.isAdminEnabled ? Math.max(0, currentAdminConfig.startWave - 1) : 0;
     hasSkippedWaveRef.current = false;
@@ -2100,14 +2326,14 @@ const App: React.FC = () => {
         return;
     }
     setNicknameError("");
-    const currentUnlockedHats = getUnlockedHats();
-    const currentUnlockedStaffs = getUnlockedStaffs();
+    const currentUnlockedHats = getPurchasableHats();
+    const currentUnlockedStaffs = getPurchasableStaffs();
 
     if (!selectedHatIdForSelectionScreen || !currentUnlockedHats.find(h => h.id === selectedHatIdForSelectionScreen)) {
-        setSelectedHatIdForSelectionScreen(currentUnlockedHats[0]?.id || null);
+        setSelectedHatIdForSelectionScreen(currentUnlockedHats[0]?.id || DEFAULT_HAT_ID);
     }
     if (!selectedStaffIdForSelectionScreen || !currentUnlockedStaffs.find(s => s.id === selectedStaffIdForSelectionScreen)) {
-        setSelectedStaffIdForSelectionScreen(currentUnlockedStaffs[0]?.id || null);
+        setSelectedStaffIdForSelectionScreen(currentUnlockedStaffs[0]?.id || DEFAULT_STAFF_ID);
     }
     previousGameStateRef.current = GameState.StartMenu;
     setGameState(GameState.CharacterSelection);
@@ -2129,6 +2355,11 @@ const App: React.FC = () => {
   const handleViewAllSkills = () => {
     previousGameStateRef.current = GameState.StartMenu;
     setGameState(GameState.SkillsInfo);
+  };
+  
+  const handleViewShop = () => {
+    previousGameStateRef.current = GameState.StartMenu;
+    setGameState(GameState.Shop);
   };
 
   const handleViewActivePlayerSkills = () => {
@@ -2171,8 +2402,8 @@ const App: React.FC = () => {
             processedValue = Math.max(0.1, parseFloat(value) || 1);
         } else if (field === 'defenseBoost') {
             processedValue = Math.max(0, Math.min(0.9, parseFloat(value) || 0));
-        } else if (field === 'startWave') {
-            processedValue = Math.max(1, parseInt(value, 10) || 1);
+        } else if (field === 'startWave' || field === 'initialCoins') {
+            processedValue = Math.max(field === 'startWave' ? 1 : 0, parseInt(value, 10) || (field === 'startWave' ? 1 : 0));
         }
         return { ...prev, [field]: processedValue };
     });
@@ -2212,10 +2443,21 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDismissUnlockPopup = () => {
-    setGameState(previousGameStateRef.current); 
-    setCurrentUnlockPopupItems([]);
-    lastFrameTimeRef.current = performance.now();
+  const handlePurchaseCosmetic = (itemId: string, price: number) => {
+    if (playerCoins >= price && !purchasedCosmeticIds.includes(itemId)) {
+      setPlayerCoins(prevCoins => prevCoins - price);
+      setPurchasedCosmeticIds(prevIds => [...prevIds, itemId]);
+    }
+  };
+
+  const handlePurchasePermanentSkill = (skillId: string, levelToBuy: number, price: number) => {
+    if (playerCoins >= price) {
+        setPlayerCoins(prevCoins => prevCoins - price);
+        setPurchasedPermanentSkillsState(prevSkills => ({
+            ...prevSkills,
+            [skillId]: { level: levelToBuy }
+        }));
+    }
   };
   
   const commonButtonClass = "px-4 py-2 text-cyan-200 font-semibold border-2 border-cyan-500 hover:border-cyan-300 transition duration-150 ease-in-out focus:outline-none focus:border-white focus:shadow-[0_0_10px_theme(colors.cyan.400)] text-sm md:text-base bg-indigo-900 hover:bg-indigo-800 shadow-[0_0_8px_theme(colors.indigo.700)] rounded-md";
@@ -2226,13 +2468,14 @@ const App: React.FC = () => {
   const cosmeticItemButtonClass = "p-2 border-2 text-xs hover:bg-gray-700 w-full text-left rounded-md";
   const cosmeticItemSelectedClass = "border-yellow-400 bg-gray-600 shadow-[0_0_8px_theme(colors.yellow.400)]";
   const cosmeticItemUnselectedClass = "border-gray-500 bg-gray-800";
+  const shopItemCardClass = "bg-gray-800 p-3 border-2 border-gray-700 rounded-md flex flex-col shadow-[0_0_5px_theme(colors.gray.700)]";
 
 
   return (
     <div className="flex flex-col items-center justify-start py-4 bg-gray-900 text-cyan-100 min-h-screen w-full" role="application">
       <h1 className="text-2xl md:text-3xl font-bold mb-3 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">Pixel Rift Defenders</h1>
 
-      <div className="game-canvas-container"> {}
+      <div ref={gameContainerRef} className="game-canvas-container">
         <canvas 
           ref={canvasRef} 
           width={CANVAS_WIDTH} 
@@ -2261,6 +2504,9 @@ const App: React.FC = () => {
                 <button onClick={handleProceedToCharacterSelection} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
                     Iniciar Jornada
                 </button>
+                <button onClick={handleViewShop} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
+                    Loja de Artefatos
+                </button>
                 <button onClick={handleViewAllSkills} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
                     Ver Habilidades Cósmicas
                 </button>
@@ -2273,6 +2519,98 @@ const App: React.FC = () => {
             </div>
         )}
 
+        {gameState === GameState.Shop && (
+            <div className={`${panelBaseClass} justify-start overflow-y-auto`} role="dialog" aria-labelledby="shopTitle">
+                <h2 id="shopTitle" className="text-2xl font-bold my-4 text-yellow-400 sticky top-0 bg-black bg-opacity-80 py-2 z-10">Loja de Artefatos Cósmicos</h2>
+                <p className="text-lg text-yellow-300 mb-4">Suas Moedas: <span className="font-bold">{playerCoins} 💰</span></p>
+
+                <div className="w-full max-w-4xl">
+                    <h3 className="text-xl font-semibold text-cyan-300 mb-2 text-center">Chapéus Galácticos</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3 p-2 bg-gray-900 border border-cyan-700 rounded-md shadow-[0_0_10px_theme(colors.cyan.700)]">
+                        {ALL_HATS_SHOP.filter(item => item.effectDescription !== 'Visual apenas.').sort((a,b) => a.price - b.price).map(hat => (
+                            <div key={hat.id} className={`${shopItemCardClass}`}>
+                                <p className="font-semibold text-cyan-200 text-sm">{hat.name}</p>
+                                <p className="text-gray-400 text-xxs my-1 flex-grow">{hat.effectDescription || hat.description}</p>
+                                {isCosmeticPurchased(hat.id) ? (
+                                    <p className="text-green-400 font-bold text-xs mt-2">Adquirido</p>
+                                ) : (
+                                    <button
+                                        onClick={() => handlePurchaseCosmetic(hat.id, hat.price)}
+                                        disabled={playerCoins < hat.price}
+                                        className={`${commonButtonClass} text-xs mt-2 w-full ${playerCoins < hat.price ? 'opacity-50 cursor-not-allowed !border-gray-600 !bg-gray-700' : ''}`}
+                                    >
+                                        Comprar ({hat.price} 💰)
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <h3 className="text-xl font-semibold text-cyan-300 mb-2 text-center">Cajados Astrais</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6 p-2 bg-gray-900 border border-cyan-700 rounded-md shadow-[0_0_10px_theme(colors.cyan.700)]">
+                        {ALL_STAFFS_SHOP.filter(item => item.effectDescription !== 'Dispara um projétil em linha reta.').sort((a,b) => a.price - b.price).map(staff => (
+                             <div key={staff.id} className={`${shopItemCardClass}`}>
+                                <p className="font-semibold text-cyan-200 text-sm">{staff.name}</p>
+                                <p className="text-gray-400 text-xxs my-1 flex-grow">{staff.effectDescription || staff.description}</p>
+                                 {isCosmeticPurchased(staff.id) ? (
+                                    <p className="text-green-400 font-bold text-xs mt-2">Adquirido</p>
+                                ) : (
+                                    <button
+                                        onClick={() => handlePurchaseCosmetic(staff.id, staff.price)}
+                                        disabled={playerCoins < staff.price}
+                                        className={`${commonButtonClass} text-xs mt-2 w-full ${playerCoins < staff.price ? 'opacity-50 cursor-not-allowed !border-gray-600 !bg-gray-700' : ''}`}
+                                    >
+                                        Comprar ({staff.price} 💰)
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <h3 className="text-xl font-semibold text-purple-400 mb-2 text-center">Habilidades Permanentes</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6 p-2 bg-gray-900 border border-purple-700 rounded-md shadow-[0_0_10px_theme(colors.purple.700)]">
+                        {PERMANENT_SKILLS_SHOP.map(skill => {
+                            const currentLevel = getPermanentSkillLevel(skill.id);
+                            const maxLevel = skill.levels.length;
+                            const isMaxed = currentLevel >= maxLevel;
+                            const nextLevelInfo = !isMaxed ? skill.levels[currentLevel] : null;
+                            const currentLevelInfo = currentLevel > 0 ? skill.levels[currentLevel - 1] : null;
+
+                            return (
+                                <div key={skill.id} className={`${shopItemCardClass} border-purple-600`}>
+                                    <div className="flex items-center mb-1">
+                                        <span className="text-xl mr-2" role="img" aria-label={skill.name}>{skill.icon}</span>
+                                        <p className="font-semibold text-purple-200 text-sm">{skill.name} {currentLevel > 0 ? `(Nível ${currentLevel})` : ''}</p>
+                                    </div>
+                                    <p className="text-gray-400 text-xxs my-1 flex-grow">{skill.baseDescription}</p>
+                                    {currentLevelInfo && <p className="text-xs text-yellow-300 mt-1">Atual: {currentLevelInfo.effectDescription}</p>}
+                                    
+                                    {isMaxed ? (
+                                        <p className="text-green-400 font-bold text-xs mt-2">Nível Máximo Atingido!</p>
+                                    ) : nextLevelInfo ? (
+                                        <>
+                                            <p className="text-xs text-cyan-300 mt-1">Próximo Nível ({nextLevelInfo.level}): {nextLevelInfo.effectDescription}</p>
+                                            <button
+                                                onClick={() => handlePurchasePermanentSkill(skill.id, nextLevelInfo.level, nextLevelInfo.price)}
+                                                disabled={playerCoins < nextLevelInfo.price}
+                                                className={`${commonButtonClass} text-xs mt-2 w-full ${playerCoins < nextLevelInfo.price ? 'opacity-50 cursor-not-allowed !border-gray-600 !bg-gray-700' : '!border-purple-500 hover:!border-purple-300 !bg-purple-800 hover:!bg-purple-700'}`}
+                                            >
+                                                Comprar Nível {nextLevelInfo.level} ({nextLevelInfo.price} 💰)
+                                            </button>
+                                        </>
+                                    ) : null}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <button onClick={handleBackToPreviousState} className={`${commonButtonClass} mt-auto sticky bottom-4`}>
+                    Voltar
+                </button>
+            </div>
+        )}
+
         {gameState === GameState.CharacterSelection && (
             <div className={`${panelBaseClass} justify-start overflow-y-auto`} role="dialog" aria-labelledby="characterSelectionTitle">
                 <h2 id="characterSelectionTitle" className="text-2xl font-bold my-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-blue-400 sticky top-0 bg-black bg-opacity-80 py-2 z-10">Confirme seu Avatar</h2>
@@ -2280,8 +2618,8 @@ const App: React.FC = () => {
                  <div className="my-2 p-1 border border-cyan-700 bg-gray-900 shadow-[0_0_15px_theme(colors.cyan.700)] flex items-center justify-center rounded-lg" style={{ width: '400px', height: '500px' }}>
                      <canvas ref={previewCanvasRef} aria-label="Pré-visualização do personagem" />
                 </div>
-                <p className="text-center text-sm mb-1 text-cyan-200">Chapéu: {ALL_HATS.find(h=>h.id === selectedHatIdForSelectionScreen)?.name || "Nenhum"}</p>
-                <p className="text-center text-sm mb-4 text-cyan-200">Cajado: {ALL_STAFFS.find(s=>s.id === selectedStaffIdForSelectionScreen)?.name || "Nenhum"}</p>
+                <p className="text-center text-sm mb-1 text-cyan-200">Chapéu: {ALL_HATS_SHOP.find(h=>h.id === selectedHatIdForSelectionScreen)?.name || "Nenhum"}</p>
+                <p className="text-center text-sm mb-4 text-cyan-200">Cajado: {ALL_STAFFS_SHOP.find(s=>s.id === selectedStaffIdForSelectionScreen)?.name || "Nenhum"}</p>
 
                 <div className="flex flex-col md:flex-row gap-3 mt-auto sticky bottom-4">
                     <button onClick={handleConfirmCharacterSelectionAndStart} className={`${commonButtonClass}`}>
@@ -2289,6 +2627,9 @@ const App: React.FC = () => {
                     </button>
                     <button onClick={handleOpenCosmeticModal} className={`${commonButtonClass}`}>
                         Customizar Aparência
+                    </button>
+                     <button onClick={() => { previousGameStateRef.current = GameState.CharacterSelection; setGameState(GameState.Shop);}} className={`${commonButtonClass}`}>
+                        Ir para Loja
                     </button>
                     <button onClick={handleExitToMainMenu} className={`${commonButtonClass}`}>
                         Voltar ao Menu Principal
@@ -2304,7 +2645,7 @@ const App: React.FC = () => {
                     <div className="md:col-span-1">
                         <h3 className="text-xl font-semibold text-cyan-400 mb-3 text-center">Chapéus Galácticos</h3>
                         <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-900 border border-cyan-600 rounded-md shadow-[0_0_10px_theme(colors.cyan.600)]">
-                            {getUnlockedHats().map(hat => (
+                            {getPurchasableHats().map(hat => (
                                 <button
                                     key={hat.id}
                                     onClick={() => {
@@ -2315,8 +2656,6 @@ const App: React.FC = () => {
                                 >
                                     <p className="font-semibold text-cyan-200">{hat.name}</p>
                                     <p className="text-gray-400 text-xxs mt-1">{hat.effectDescription || hat.description}</p>
-                                    {ORDERED_UNLOCKABLE_COSMETICS.find(unlock => unlock.id === hat.id) &&
-                                     <p className="text-yellow-400 text-xxs italic">Desbloqueado após {ORDERED_UNLOCKABLE_COSMETICS.findIndex(u=>u.id === hat.id)+1}º chefe</p>}
                                 </button>
                             ))}
                         </div>
@@ -2331,7 +2670,7 @@ const App: React.FC = () => {
                     <div className="md:col-span-1">
                         <h3 className="text-xl font-semibold text-cyan-400 mb-3 text-center">Cajados Astrais</h3>
                         <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-900 border border-cyan-600 rounded-md shadow-[0_0_10px_theme(colors.cyan.600)]">
-                            {getUnlockedStaffs().map(staff => (
+                            {getPurchasableStaffs().map(staff => (
                                 <button
                                     key={staff.id}
                                     onClick={() => {
@@ -2342,8 +2681,6 @@ const App: React.FC = () => {
                                 >
                                     <p className="font-semibold text-cyan-200">{staff.name}</p>
                                     <p className="text-gray-400 text-xxs mt-1">{staff.effectDescription || staff.description}</p>
-                                     {ORDERED_UNLOCKABLE_COSMETICS.find(unlock => unlock.id === staff.id) &&
-                                     <p className="text-yellow-400 text-xxs italic">Desbloqueado após {ORDERED_UNLOCKABLE_COSMETICS.findIndex(u=>u.id === staff.id)+1}º chefe</p>}
                                 </button>
                             ))}
                         </div>
@@ -2389,6 +2726,10 @@ const App: React.FC = () => {
                     <div>
                         <label htmlFor="debugStartWave" className={`${adminLabelClass} block text-center`}>Onda Inicial:</label>
                         <input type="number" id="debugStartWave" value={adminConfig.startWave} onChange={(e) => handleAdminConfigChange('startWave', e.target.value)} className={adminInputClass} aria-label="Onda Inicial Debug"/>
+                    </div>
+                     <div>
+                        <label htmlFor="debugInitialCoins" className={`${adminLabelClass} block text-center`}>Moedas Iniciais:</label>
+                        <input type="number" id="debugInitialCoins" value={adminConfig.initialCoins} onChange={(e) => handleAdminConfigChange('initialCoins', e.target.value)} className={adminInputClass} aria-label="Moedas Iniciais Debug"/>
                     </div>
                     <div>
                         <label htmlFor="debugXpMultiplier" className={`${adminLabelClass} block text-center`}>Multiplicador XP:</label>
@@ -2525,28 +2866,14 @@ const App: React.FC = () => {
             </div>
         )}
 
-        {gameState === GameState.UnlockNotificationPopup && (
-            <div className={`${panelBaseClass} justify-center text-center`} role="alertdialog" aria-labelledby="unlockPopupTitle">
-                <h2 id="unlockPopupTitle" className="text-2xl md:text-3xl font-bold mb-6 text-yellow-300">🎉 Novo Artefato Cósmico! 🎉</h2>
-                <div className="mb-6 text-left max-w-md mx-auto bg-gray-800 p-4 rounded-md border-2 border-yellow-400 shadow-[0_0_10px_theme(colors.yellow.400)]">
-                  {currentUnlockPopupItems.map(item => (
-                    <p key={item.id} className="text-lg text-gray-200 py-1">
-                      {item.type === 'hat' ? '🎩 Artefato de Cabeça' : '🪄 Canalizador de Energia'}: <span className="font-semibold text-yellow-200">{item.name}</span>
-                    </p>
-                  ))}
-                </div>
-                <button onClick={handleDismissUnlockPopup} className={`${commonButtonClass} w-48`}>
-                  OK!
-                </button>
-            </div>
-        )}
-
         {gameState === GameState.GameOver && (
             <div className={`${panelBaseClass} justify-center text-center`} role="alertdialog" aria-labelledby="gameOverTitle">
                 <h2 id="gameOverTitle" className="text-4xl font-bold mb-3 text-red-500">Fim da Transmissão</h2>
                 <p className="text-base text-gray-300 mb-1">Combatente: {player.nickname}</p>
                 <p className="text-base text-gray-300 mb-1">Setor Alcançado: <span className="text-yellow-400 font-semibold">{currentWave}</span></p>
-                <p className="text-base text-gray-300 mb-4">Tempo de Sobrevivência: <span className="text-yellow-400 font-semibold">{Math.floor(gameTime)}s</span></p>
+                <p className="text-base text-gray-300 mb-1">Tempo de Sobrevivência: <span className="text-yellow-400 font-semibold">{Math.floor(gameTime)}s</span></p>
+                <p className="text-base text-gray-300 mb-4">Moedas Coletadas na Partida: <span className="text-yellow-400 font-semibold">{playerCoinsRef.current - (playerRef.current.coins - (playerRef.current.isDashing ? 0 : 0)) /* Minor fix to ensure correct display */}</span></p>
+                <p className="text-base text-gray-300 mb-4">Total de Moedas: <span className="text-yellow-400 font-semibold">{playerCoinsRef.current} 💰</span></p>
                 {player.selectedHatId === 'hat_fedora' && <p className="text-sm text-yellow-300 mb-3">(Pontuação não registrada devido ao Chapéu Fedora)</p>}
                 <button onClick={handleExitToMainMenu} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
                     Menu Principal
@@ -2571,9 +2898,9 @@ const App: React.FC = () => {
                 </button>
             </div>
         )}
-      </div> {}
+      </div>
        <footer className="mt-4 text-center text-xs text-gray-500 px-2 w-full max-w-3xl">
-        <p>Controles: A/D para mover, Espaço para pular, Mouse para mirar e atirar. P para Pausar.</p>
+        <p>Controles: A/D para mover, Espaço para pular, {playerRef.current.hasDashSkill && getPermanentSkillLevel(SKILL_ID_DASH) > 0 ? "Shift para Dash, " : ""}Mouse para mirar e atirar. P para Pausar.</p>
         <p>&copy; {new Date().getFullYear()} Pixel Rift Defenders. Uma Aventura Cósmica de IA.</p>
       </footer>
     </div>
