@@ -2569,7 +2569,7 @@ const App: React.FC = () => {
                  <button onClick={handleViewDebugPanel} className={`${commonButtonClass} mt-4 w-64 md:w-80`}>
                     Debug
                 </button>
-                <div className="mt-auto pt-1 text-center text-xs text-gray-400">
+                <div className="mt-6 pt-1 text-center text-xs text-gray-400">
                   <p className="mb-1">Controles: A/D para mover, Espaço para pular, {playerRef.current.hasDashSkill && getPermanentSkillLevel(SKILL_ID_DASH) > 0 ? "Shift para Dash, " : ""}Mouse para mirar e atirar. P para Pausar.</p>
                 </div>
             </div>
