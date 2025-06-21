@@ -165,7 +165,6 @@ const App: React.FC = () => {
     xpMultiplier: 1,
     damageMultiplier: 1,
     defenseBoost: 0,
-    initialCoins: 0,
   });
   const adminConfigRef = useRef(adminConfig);
    useEffect(() => { adminConfigRef.current = adminConfig; }, [adminConfig]);
@@ -173,16 +172,6 @@ const App: React.FC = () => {
   const [playerCoins, setPlayerCoins] = useState<number>(0);
   const [purchasedCosmeticIds, setPurchasedCosmeticIds] = useState<string[]>([DEFAULT_HAT_ID, DEFAULT_STAFF_ID]);
   const [purchasedPermanentSkillsState, setPurchasedPermanentSkillsState] = useState<Record<string, { level: number }>>({});
-
-
-  const playerCoinsRef = useRef(playerCoins);
-  useEffect(() => { playerCoinsRef.current = playerCoins; }, [playerCoins]);
-  const purchasedCosmeticIdsRef = useRef(purchasedCosmeticIds);
-  useEffect(() => { purchasedCosmeticIdsRef.current = purchasedCosmeticIds; }, [purchasedCosmeticIds]);
-  
-  const purchasedPermanentSkillsRef = useRef(purchasedPermanentSkillsState);
-  useEffect(() => { purchasedPermanentSkillsRef.current = purchasedPermanentSkillsState; }, [purchasedPermanentSkillsState]);
-
 
   const [selectedHatIdForSelectionScreen, setSelectedHatIdForSelectionScreen] = useState<string | null>(DEFAULT_HAT_ID);
   const [selectedStaffIdForSelectionScreen, setSelectedStaffIdForSelectionScreen] = useState<string | null>(DEFAULT_STAFF_ID);
@@ -292,6 +281,15 @@ const App: React.FC = () => {
 
   const PIXEL_FONT_FAMILY = "'Press Start 2P', monospace";
 
+  const saveCosmeticData = useCallback(() => {
+    const data: CosmeticUnlocksData = {
+      playerCoins: playerCoins,
+      purchasedItemIds: purchasedCosmeticIds,
+      purchasedPermanentSkills: purchasedPermanentSkillsState,
+    };
+    localStorage.setItem(COSMETIC_DATA_KEY, JSON.stringify(data));
+  }, [playerCoins, purchasedCosmeticIds, purchasedPermanentSkillsState]);
+
   const loadCosmeticData = useCallback(() => {
     const storedData = localStorage.getItem(COSMETIC_DATA_KEY);
     if (storedData) {
@@ -300,7 +298,7 @@ const App: React.FC = () => {
       const defaultItems = [DEFAULT_HAT_ID, DEFAULT_STAFF_ID];
       const combinedPurchased = new Set([...(loaded.purchasedItemIds || []), ...defaultItems]);
       setPurchasedCosmeticIds(Array.from(combinedPurchased));
-      setPurchasedPermanentSkillsState(loaded.purchasedPermanentSkills || {}); // Load purchased skill levels
+      setPurchasedPermanentSkillsState(loaded.purchasedPermanentSkills || {});
     } else {
       setPurchasedCosmeticIds([DEFAULT_HAT_ID, DEFAULT_STAFF_ID]);
       setPlayerCoins(0);
@@ -308,14 +306,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const saveCosmeticData = useCallback(() => {
-    const data: CosmeticUnlocksData = {
-      playerCoins: playerCoinsRef.current,
-      purchasedItemIds: purchasedCosmeticIdsRef.current,
-      purchasedPermanentSkills: purchasedPermanentSkillsRef.current, // Save purchased skill levels
-    };
-    localStorage.setItem(COSMETIC_DATA_KEY, JSON.stringify(data));
-  }, []);
 
   useEffect(() => {
     loadCosmeticData();
@@ -327,12 +317,12 @@ const App: React.FC = () => {
 
 
   const isCosmeticPurchased = useCallback((itemId: string): boolean => {
-    return purchasedCosmeticIdsRef.current.includes(itemId);
-  }, []);
+    return purchasedCosmeticIds.includes(itemId);
+  }, [purchasedCosmeticIds]);
 
   const getPermanentSkillLevel = useCallback((skillId: string): number => {
-    return purchasedPermanentSkillsRef.current[skillId]?.level || 0;
-  }, []);
+    return purchasedPermanentSkillsState[skillId]?.level || 0;
+  }, [purchasedPermanentSkillsState]);
   
   const getPurchasableHats = useCallback((): HatItem[] => {
     return ALL_HATS_SHOP.filter(hat => isCosmeticPurchased(hat.id) && hat.effectDescription !== 'Visual apenas.');
@@ -551,10 +541,10 @@ const App: React.FC = () => {
     } else if (playerRef.current.isAdmin) {
       saveScoreToLeaderboardService(playerRef.current.nickname, currentWave, gameTime, true);
     }
-    setPlayer(p => ({...p, coins: playerCoinsRef.current})); 
+    setPlayer(p => ({...p, coins: playerCoins})); 
     saveCosmeticData(); 
     setGameState(GameState.GameOver);
-  }, [currentWave, gameTime, saveScoreToLeaderboardService, saveCosmeticData]);
+  }, [currentWave, gameTime, saveScoreToLeaderboardService, saveCosmeticData, playerCoins]);
 
   const gameContextForUpgrades = useRef({
     enableFragmentation: null as ((enemy: Enemy) => void) | null,
@@ -791,7 +781,7 @@ const App: React.FC = () => {
             return updatedPlayerState;
         });
     }
-  }, [gameContextForUpgrades, handleLevelUp, createParticleEffect, currentWave, adminConfigRef, saveCosmeticData]);
+  }, [gameContextForUpgrades, handleLevelUp, createParticleEffect, currentWave, adminConfigRef]);
 
   gameContextForUpgrades.activateThunderbolts = (boltCountFromApply: number, interval: number, targetX?: number, targetY?: number) => {
     if (interval > 0 && !targetX && !targetY) {
@@ -1892,7 +1882,7 @@ const App: React.FC = () => {
         ctx.fillStyle = '#FFD700'; 
         ctx.textAlign = 'left';
         ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 3;
-        ctx.fillText(`Moedas: ${playerCoinsRef.current} 💰`, BAR_X, COIN_TEXT_Y);
+        ctx.fillText(`Moedas: ${playerCoins} 💰`, BAR_X, COIN_TEXT_Y);
         ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
 
 
@@ -2247,9 +2237,13 @@ const App: React.FC = () => {
     let newPlayerState = getDefaultPlayerState(playerNickname, selectedHat, selectedStaff);
     newPlayerState = applyHatEffect(newPlayerState, selectedHat);
     newPlayerState = applyStaffEffectToPlayerBase(newPlayerState, selectedStaff);
+    
+    // Apply permanent skills based on current state, not refs
+    newPlayerState.purchasedPermanentSkills = purchasedPermanentSkillsState;
     newPlayerState = applyPermanentSkillEffectsToPlayer(newPlayerState); 
-    newPlayerState.coins = playerCoinsRef.current; 
-    newPlayerState.purchasedPermanentSkills = purchasedPermanentSkillsRef.current; 
+    
+    // Set initial coins for the game session
+    newPlayerState.coins = playerCoins; // Use current global playerCoins
 
 
     if (currentAdminConfig?.isAdminEnabled) {
@@ -2260,13 +2254,8 @@ const App: React.FC = () => {
             newPlayerState.projectileDamage *= currentAdminConfig.damageMultiplier;
         }
         if(currentAdminConfig.defenseBoost !== undefined && currentAdminConfig.defenseBoost >= 0){
-            newPlayerState.defense = Math.min(0.95, newPlayerState.defense + currentAdminConfig.defenseBoost);
+            newPlayerState.defense = Math.min(0.95, newPlayerState.defense + (currentAdminConfig.defenseBoost || 0));
         }
-        if(currentAdminConfig.initialCoins !== undefined) {
-            newPlayerState.coins = currentAdminConfig.initialCoins;
-            setPlayerCoins(currentAdminConfig.initialCoins); 
-        }
-
 
         Object.entries(currentAdminConfig.selectedSkills).forEach(([skillId, count]) => {
             const upgrade = InitialUpgrades.find(u => u.id === skillId);
@@ -2416,8 +2405,8 @@ const App: React.FC = () => {
             processedValue = Math.max(0.1, parseFloat(value) || 1);
         } else if (field === 'defenseBoost') {
             processedValue = Math.max(0, Math.min(0.9, parseFloat(value) || 0));
-        } else if (field === 'startWave' || field === 'initialCoins') {
-            processedValue = Math.max(field === 'startWave' ? 1 : 0, parseInt(value, 10) || (field === 'startWave' ? 1 : 0));
+        } else if (field === 'startWave') {
+            processedValue = Math.max(1, parseInt(value, 10) || 1);
         }
         return { ...prev, [field]: processedValue };
     });
@@ -2654,8 +2643,9 @@ const App: React.FC = () => {
         {gameState === GameState.CosmeticSelectionModal && (
              <div className={`${panelBaseClass} justify-start overflow-y-auto`} role="dialog" aria-labelledby="cosmeticSelectionTitle">
                 <h2 id="cosmeticSelectionTitle" className="text-2xl font-bold my-4 text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-400 sticky top-0 bg-black bg-opacity-80 py-2 z-10">Escolha seu Visual Cósmico</h2>
-                <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl p-4">
-                    <div className="md:col-span-1">
+                <div className="flex-grow grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] md:gap-12 w-full max-w-5xl p-4">
+                    {/* Hat Column */}
+                    <div>
                         <h3 className="text-xl font-semibold text-cyan-400 mb-3 text-center">Chapéus Galácticos</h3>
                         <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-900 border border-cyan-600 rounded-md shadow-[0_0_10px_theme(colors.cyan.600)]">
                             {getPurchasableHats().map(hat => (
@@ -2674,13 +2664,15 @@ const App: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="md:col-span-1 flex flex-col items-center justify-center">
+                    {/* Preview Column */}
+                    <div className="flex flex-col items-center justify-center">
                          <div className="my-2 p-1 border border-cyan-700 bg-gray-900 shadow-[0_0_15px_theme(colors.cyan.700)] flex items-center justify-center rounded-lg" style={{ width: '400px', height: '500px' }}>
                             <canvas ref={previewCanvasRef} aria-label="Pré-visualização do personagem com cosméticos" />
                         </div>
                     </div>
 
-                    <div className="md:col-span-1">
+                    {/* Staff Column */}
+                    <div>
                         <h3 className="text-xl font-semibold text-cyan-400 mb-3 text-center">Cajados Astrais</h3>
                         <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-900 border border-cyan-600 rounded-md shadow-[0_0_10px_theme(colors.cyan.600)]">
                             {getPurchasableStaffs().map(staff => (
@@ -2735,14 +2727,10 @@ const App: React.FC = () => {
                     <label htmlFor="enableDebugMode" className="text-base text-yellow-300">Habilitar Modo Debug</label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                     <div>
                         <label htmlFor="debugStartWave" className={`${adminLabelClass} block text-center`}>Onda Inicial:</label>
                         <input type="number" id="debugStartWave" value={adminConfig.startWave} onChange={(e) => handleAdminConfigChange('startWave', e.target.value)} className={adminInputClass} aria-label="Onda Inicial Debug"/>
-                    </div>
-                     <div>
-                        <label htmlFor="debugInitialCoins" className={`${adminLabelClass} block text-center`}>Moedas Iniciais:</label>
-                        <input type="number" id="debugInitialCoins" value={adminConfig.initialCoins} onChange={(e) => handleAdminConfigChange('initialCoins', e.target.value)} className={adminInputClass} aria-label="Moedas Iniciais Debug"/>
                     </div>
                     <div>
                         <label htmlFor="debugXpMultiplier" className={`${adminLabelClass} block text-center`}>Multiplicador XP:</label>
@@ -2885,8 +2873,8 @@ const App: React.FC = () => {
                 <p className="text-base text-gray-300 mb-1">Combatente: {player.nickname}</p>
                 <p className="text-base text-gray-300 mb-1">Setor Alcançado: <span className="text-yellow-400 font-semibold">{currentWave}</span></p>
                 <p className="text-base text-gray-300 mb-1">Tempo de Sobrevivência: <span className="text-yellow-400 font-semibold">{Math.floor(gameTime)}s</span></p>
-                <p className="text-base text-gray-300 mb-4">Moedas Coletadas na Partida: <span className="text-yellow-400 font-semibold">{playerCoinsRef.current - (playerRef.current.coins - (playerRef.current.isDashing ? 0 : 0)) /* Minor fix to ensure correct display */}</span></p>
-                <p className="text-base text-gray-300 mb-4">Total de Moedas: <span className="text-yellow-400 font-semibold">{playerCoinsRef.current} 💰</span></p>
+                <p className="text-base text-gray-300 mb-4">Moedas Coletadas na Partida: <span className="text-yellow-400 font-semibold">{playerCoins - player.coins}</span></p>
+                <p className="text-base text-gray-300 mb-4">Total de Moedas: <span className="text-yellow-400 font-semibold">{playerCoins} 💰</span></p>
                 {player.selectedHatId === 'hat_fedora' && <p className="text-sm text-yellow-300 mb-3">(Pontuação não registrada devido ao Chapéu Fedora)</p>}
                 <button onClick={handleExitToMainMenu} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
                     Menu Principal

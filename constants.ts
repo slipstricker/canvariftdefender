@@ -99,7 +99,7 @@ export const ADMIN_START_WAVE = 1;
 // Boss Constants
 export const BOSS_WAVE_NUMBER = 5; 
 export const ALL_BOSS_WAVES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
-export const BOSS_HP = 1500;
+export const BOSS_HP = 3000;
 export const BOSS_STAT_REFERENCE_WAVE = 4; 
 export const BOSS_DAMAGE_MULTIPLIER = 2;
 export const BOSS_ATTACK_SPEED_MULTIPLIER = 2;

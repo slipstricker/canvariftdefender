@@ -280,7 +280,6 @@ export interface AdminConfig {
   xpMultiplier?: number;
   damageMultiplier?: number;
   defenseBoost?: number; // Represents a flat percentage boost, e.g., 0.1 for +10%
-  initialCoins?: number; // For debug
 }
 
 // Used for the state that prepares data for rendering acquired skills UI
