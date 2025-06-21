@@ -348,9 +348,9 @@ const App: React.FC = () => {
     const previewPlayerRenderWidth = PLAYER_WIDTH * previewScaleFactor;
     const previewPlayerRenderHeight = PLAYER_HEIGHT * previewScaleFactor;
 
-    const canvasWidthForPreview = 400; 
-    const canvasHeightForPreview = 500; 
-    const playerFeetFromBottomOffset = 60; 
+    const canvasWidthForPreview = 300; // Original: 400
+    const canvasHeightForPreview = 375; // Original: 500
+    const playerFeetFromBottomOffset = 45; // Original: 60
 
     if (previewCanvasRef.current) {
         previewCanvasRef.current.width = canvasWidthForPreview; 
@@ -2668,16 +2668,16 @@ const App: React.FC = () => {
         )}
 
         {gameState === GameState.CharacterSelection && (
-            <div className={`${panelBaseClass} justify-start overflow-y-auto`} role="dialog" aria-labelledby="characterSelectionTitle">
+            <div className={`${panelBaseClass} justify-center`} role="dialog" aria-labelledby="characterSelectionTitle">
                 <h2 id="characterSelectionTitle" className="text-2xl font-bold my-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-300 to-blue-400 sticky top-0 bg-black bg-opacity-80 py-2 z-10">Confirme seu Avatar</h2>
 
-                 <div className="my-2 p-1 border border-cyan-700 bg-gray-900 shadow-[0_0_15px_theme(colors.cyan.700)] flex items-center justify-center rounded-lg" style={{ width: '400px', height: '500px' }}>
+                 <div className="my-2 p-1 border border-cyan-700 bg-gray-900 shadow-[0_0_15px_theme(colors.cyan.700)] flex items-center justify-center rounded-lg" style={{ width: '300px', height: '375px' }}>
                      <canvas ref={previewCanvasRef} aria-label="Pré-visualização do personagem" />
                 </div>
                 <p className="text-center text-sm mb-1 text-cyan-200">Chapéu: {ALL_HATS_SHOP.find(h=>h.id === selectedHatIdForSelectionScreen)?.name || "Nenhum"}</p>
                 <p className="text-center text-sm mb-4 text-cyan-200">Cajado: {ALL_STAFFS_SHOP.find(s=>s.id === selectedStaffIdForSelectionScreen)?.name || "Nenhum"}</p>
 
-                <div className="flex flex-col md:flex-row gap-3 mt-auto sticky bottom-4">
+                <div className="flex flex-col md:flex-row gap-3 sticky bottom-4">
                     <button onClick={handleConfirmCharacterSelectionAndStart} className={`${commonButtonClass}`}>
                         Confirmar e Iniciar
                     </button>
@@ -2720,7 +2720,7 @@ const App: React.FC = () => {
 
                     {/* Preview Column */}
                     <div className="flex flex-col items-center justify-center">
-                         <div className="my-2 p-1 border border-cyan-700 bg-gray-900 shadow-[0_0_15px_theme(colors.cyan.700)] flex items-center justify-center rounded-lg" style={{ width: '400px', height: '500px' }}>
+                         <div className="my-2 p-1 border border-cyan-700 bg-gray-900 shadow-[0_0_15px_theme(colors.cyan.700)] flex items-center justify-center rounded-lg" style={{ width: '300px', height: '375px' }}>
                             <canvas ref={previewCanvasRef} aria-label="Pré-visualização do personagem com cosméticos" />
                         </div>
                     </div>
