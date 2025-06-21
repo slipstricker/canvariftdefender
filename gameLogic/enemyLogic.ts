@@ -1,4 +1,5 @@
 
+
 import { Enemy, Player, Projectile, AppliedStatusEffect, EnemyType, AlienVisualVariant, EnemyUpdateResult } from '../types';
 import { 
     CANVAS_HEIGHT, CANVAS_WIDTH, ENEMY_PROJECTILE_COLOR,
@@ -315,7 +316,10 @@ export function updateEnemy(
   enemyInput: Enemy, 
   player: Player,
   deltaTime: number,
-  addEnemyProjectile: (x: number, y: number, vx: number, vy: number, damage: number) => void,
+  addEnemyProjectile: (
+    x: number, y: number, vx: number, vy: number, damage: number, 
+    owner: 'player' | 'enemy', color: string, glowColor?: string
+  ) => void,
   currentWave: number,
   playerProjectiles: Readonly<Projectile[]>,
   playSound: (soundName: string, volume?: number) => void,
@@ -597,7 +601,10 @@ export function updateEnemy(
       y + height / 2 - projectileHeight / 2,
       Math.cos(angle) * projectileSpeed,
       Math.sin(angle) * projectileSpeed,
-      currentEnemyDamage
+      currentEnemyDamage,
+      'enemy',
+      ENEMY_PROJECTILE_COLOR,
+      undefined // No glow for default enemy projectiles
     );
   }
   

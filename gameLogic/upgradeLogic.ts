@@ -2,6 +2,7 @@
 
 import { Upgrade, Player, Enemy } from '../types';
 import { PLAYER_INITIAL_ATTACK_SPEED, PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_CRIT_CHANCE } from '../constants';
+import { ALL_STAFFS_SHOP, DEFAULT_STAFF_ID } from './shopLogic';
 
 export const UPGRADES: Upgrade[] = [
   {
@@ -139,15 +140,23 @@ export const UPGRADES: Upgrade[] = [
     apply: (player, game) => { 
       game.enableFragmentation = (enemy: Enemy) => {
         if (!game.addEnemyProjectile) return;
+
+        const currentStaff = ALL_STAFFS_SHOP.find(s => s.id === player.selectedStaffId) || ALL_STAFFS_SHOP.find(s => s.id === DEFAULT_STAFF_ID);
+        const projectileColor = currentStaff?.projectileColor || '#FFA500'; // Default to orange if somehow not found
+        const projectileGlowColor = currentStaff?.projectileGlowColor;
+
         for(let i = 0; i < 2; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const speed = 150;
+          const speed = 350; // Slightly faster than before
           game.addEnemyProjectile(
             enemy.x + enemy.width / 2, 
             enemy.y + enemy.height / 2, 
             Math.cos(angle) * speed, 
             Math.sin(angle) * speed, 
-            Math.max(1, player.projectileDamage / 4) 
+            Math.max(1, player.projectileDamage / 3), // Damage slightly buffed
+            'player', // Owner is player
+            projectileColor, // Player's projectile color
+            projectileGlowColor // Player's projectile glow color
           );
         }
       };

@@ -564,7 +564,10 @@ const App: React.FC = () => {
          setAvailableUpgrades(prev => prev.filter(u => u.id !== upgradeId));
       }
     },
-    addEnemyProjectile: (x: number, y: number, vx: number, vy: number, damage: number) => {
+    addEnemyProjectile: (
+        x: number, y: number, vx: number, vy: number, damage: number, 
+        owner: 'player' | 'enemy', color: string, glowColor?: string
+    ) => {
        const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE;
        const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE;
        const newProjectile: Projectile = {
@@ -573,12 +576,23 @@ const App: React.FC = () => {
         width: projectileWidth,
         height: projectileHeight,
         vx, vy, damage,
-        owner: 'enemy', color: ENEMY_PROJECTILE_COLOR,
-        appliedEffectType: 'standard', 
+        owner, 
+        color,
+        glowEffectColor: glowColor,
+        appliedEffectType: 'standard', // Fragmentation projectiles are standard type by default
         damagedEnemyIDs: [],
         draw: () => {},
+        // For player-owned fragmentation, add pierce and homing if player has them
+        hitsLeft: owner === 'player' ? 1 + (playerRef.current.projectilePierceCount || 0) : 1,
+        isHoming: owner === 'player' ? playerRef.current.projectilesAreHoming : false,
+        homingStrength: owner === 'player' ? playerRef.current.projectileHomingStrength : undefined,
+        trailSpawnTimer: owner === 'player' ? (0.01 + Math.random() * 0.02) : undefined,
       };
-      setEnemyProjectiles(prev => [...prev, newProjectile]);
+      if (owner === 'player') {
+        setPlayerProjectiles(prev => [...prev, newProjectile]);
+      } else {
+        setEnemyProjectiles(prev => [...prev, newProjectile]);
+      }
     }
   }).current;
 
@@ -2473,7 +2487,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-start py-4 bg-gray-900 text-cyan-100 min-h-screen w-full" role="application">
-      <h1 className="text-2xl md:text-3xl font-bold mb-3 tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">Pixel Rift Defenders</h1>
 
       <div ref={gameContainerRef} className="game-canvas-container">
         <canvas 
