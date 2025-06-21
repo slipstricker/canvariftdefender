@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Rift Defenders - Cosmic Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body { 
+            background-color: #030712; /* Very dark blue/black - base for space */
+            color: #E0FFFF; /* Light Cyan default text */
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            font-family: 'Press Start 2P', monospace; 
+        }
+        #root {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .game-canvas-container {
+            width: 95vw; 
+            max-width: 1280px; 
+            height: 85vh; 
+            max-height: 720px; 
+            margin: 10px auto; 
+            position: relative; 
+            overflow: hidden; 
+            border: 2px solid #4A00E0; /* Purple glow border */
+            box-shadow: 0 0 15px rgba(74, 0, 224, 0.7); /* Outer glow */
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border-radius: 8px; /* Slightly rounded corners */
+        }
+        .game-canvas-container canvas {
+            display: block;
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; 
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            background-color: #000000; 
+            outline: none; 
+        }
+        /* Visual cue for canvas focus - Space theme */
+        .game-canvas-container canvas:focus,
+        .game-canvas-container:has(canvas:focus) { 
+             border-color: #00FFFF; /* Bright Cyan focus */
+             box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), inset 0 0 10px rgba(0, 200, 200, 0.5); /* Enhanced glow */
+             outline: none; /* Removed default outline, using box-shadow for focus */
+        }
+
+        input, button {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        /* Update button styles for space theme (Tailwind overrides in App.tsx are primary) */
+        button {
+            /* Example: commonButtonClass in App.tsx will mostly define this */
+            color: #E0FFFF; /* Light Cyan */
+            background-color: #2C3E50; /* Dark Slate Blue */
+            border-color: #00FFFF; /* Cyan Border */
+        }
+        button:hover {
+            background-color: #34495E; /* Slightly Lighter Slate Blue */
+            border-color: #7FFFD4; /* Aquamarine */
+        }
+        
+        /* Custom scrollbar for a more space/tech feel - WebKit only */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0A0F1A; /* Darker space blue for track */
+            border: 1px solid #1C2941; /* Border for the track */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2C3E50; /* Scrollbar thumb color - dark slate blue */
+            border: 1px solid #4A6584; /* Border for the thumb */
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #34495E; /* Lighter on hover */
+        }
+        ::-webkit-scrollbar-corner {
+            background: #0A0F1A;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
