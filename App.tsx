@@ -2977,7 +2977,7 @@ const App: React.FC = () => {
         )}
       </div>
        <footer className="mt-4 text-center text-xs text-gray-500 px-2 w-full max-w-3xl">
-        <p>Controles: A/D para mover, Espaço pula, Shift para Dash, Mouse para mirar e atirar. P para Pausar.</p>
+        <p>Controles: A/D mover, Espaço pular, Shift dar Dash, Mouse mirar/atirar. P para Pausar.</p>
         <p>&copy; {new Date().getFullYear()} Pixel Rift Defenders. Uma Aventura Cósmica de IA.</p>
       </footer>
     </div>
