@@ -136,11 +136,11 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
     type: 'permanent_skill',
     levels: [
       { level: 1, price: 10, effectDescription: 'Cooldown: 30s', dashCooldown: 30, applyEffect: (player: Player) => { player.hasDashSkill = true; player.dashCooldownTime = 30; player.dashDurationTime = SKILL_DASH_DURATION; player.dashSpeedValue = SKILL_DASH_SPEED; player.dashInvincibilityDuration = SKILL_DASH_INVINCIBILITY_DURATION; } },
-      { level: 2, price: 15, effectDescription: 'Cooldown: 25s', dashCooldown: 25, applyEffect: (player: Player) => { player.dashCooldownTime = 25; } },
-      { level: 3, price: 20, effectDescription: 'Cooldown: 20s', dashCooldown: 20, applyEffect: (player: Player) => { player.dashCooldownTime = 20; } },
-      { level: 4, price: 25, effectDescription: 'Cooldown: 15s', dashCooldown: 15, applyEffect: (player: Player) => { player.dashCooldownTime = 15; } },
-      { level: 5, price: 30, effectDescription: 'Cooldown: 10s', dashCooldown: 10, applyEffect: (player: Player) => { player.dashCooldownTime = 10; } },
-      { level: 6, price: 35, effectDescription: 'Cooldown: 5s', dashCooldown: 5, applyEffect: (player: Player) => { player.dashCooldownTime = 5; } },
+      { level: 2, price: 15, effectDescription: 'Cooldown: 25s', dashCooldown: 25, applyEffect: (player: Player) => { player.hasDashSkill = true; player.dashCooldownTime = 25; player.dashDurationTime = SKILL_DASH_DURATION; player.dashSpeedValue = SKILL_DASH_SPEED; player.dashInvincibilityDuration = SKILL_DASH_INVINCIBILITY_DURATION;} },
+      { level: 3, price: 20, effectDescription: 'Cooldown: 20s', dashCooldown: 20, applyEffect: (player: Player) => { player.hasDashSkill = true; player.dashCooldownTime = 20; player.dashDurationTime = SKILL_DASH_DURATION; player.dashSpeedValue = SKILL_DASH_SPEED; player.dashInvincibilityDuration = SKILL_DASH_INVINCIBILITY_DURATION;} },
+      { level: 4, price: 25, effectDescription: 'Cooldown: 15s', dashCooldown: 15, applyEffect: (player: Player) => { player.hasDashSkill = true; player.dashCooldownTime = 15; player.dashDurationTime = SKILL_DASH_DURATION; player.dashSpeedValue = SKILL_DASH_SPEED; player.dashInvincibilityDuration = SKILL_DASH_INVINCIBILITY_DURATION;} },
+      { level: 5, price: 30, effectDescription: 'Cooldown: 10s', dashCooldown: 10, applyEffect: (player: Player) => { player.hasDashSkill = true; player.dashCooldownTime = 10; player.dashDurationTime = SKILL_DASH_DURATION; player.dashSpeedValue = SKILL_DASH_SPEED; player.dashInvincibilityDuration = SKILL_DASH_INVINCIBILITY_DURATION;} },
+      { level: 6, price: 35, effectDescription: 'Cooldown: 5s', dashCooldown: 5, applyEffect: (player: Player) => { player.hasDashSkill = true; player.dashCooldownTime = 5; player.dashDurationTime = SKILL_DASH_DURATION; player.dashSpeedValue = SKILL_DASH_SPEED; player.dashInvincibilityDuration = SKILL_DASH_INVINCIBILITY_DURATION;} },
     ],
   },
   {
