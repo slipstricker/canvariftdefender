@@ -80,7 +80,7 @@ const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: stri
   isJumping: false,
   isInvincible: false,
   lastHitTime: 0,
-  invincibilityDuration: 500, // Default hit invincibility
+  invincibilityDuration: 1000, // Default hit invincibility
   shootCooldown: 0,
   lastShotTime: 0,
   upgrades: [],
@@ -504,7 +504,7 @@ const App: React.FC = () => {
     const maxExpectedSkills = skillsFromRegularLevels + bossLevelBonusCount + MAX_SKILLS_CHEAT_BUFFER;
 
     if (playerState.level > maxExpectedLevel) {
-        console.warn(`Anti-Cheat: Nível do jogador ${playerState.level} excede o máximo esperado ${maxExpectedLevel} para a onda ${wavePlayerDiedOn}.`);
+        console.warn(`Anti-Cheat: Nível do jogador ${playerState.level} excede o máximo esperado ${maxExpectedLevel} para a wave ${wavePlayerDiedOn}.`);
         return false;
     }
     if (totalSkillsAcquired > maxExpectedSkills) {
@@ -518,7 +518,7 @@ const App: React.FC = () => {
     if (!nicknameToSave.trim()) return;
 
     if (hasSkippedWaveRef.current && !isAdminPlayer) {
-        console.warn("Anti-Cheat: Pulo de onda detectado. Pontuação não salva.");
+        console.warn("Anti-Cheat: Pulo de wave detectado. Pontuação não salva.");
         return;
     }
 
@@ -549,10 +549,10 @@ const App: React.FC = () => {
     } else if (playerRef.current.isAdmin) {
       saveScoreToLeaderboardService(playerRef.current.nickname, currentWave, gameTime, true);
     }
-    setPlayer(p => ({...p, coins: playerCoins})); 
+    // playerCoins state is already updated live, player.coins stores the start-of-session coins
     saveCosmeticData(); 
     setGameState(GameState.GameOver);
-  }, [currentWave, gameTime, saveScoreToLeaderboardService, saveCosmeticData, playerCoins]);
+  }, [currentWave, gameTime, saveScoreToLeaderboardService, saveCosmeticData]);
 
   const gameContextForUpgrades = useRef({
     enableFragmentation: null as ((enemy: Enemy) => void) | null,
@@ -966,7 +966,7 @@ const App: React.FC = () => {
             text: "CONGELADO!",
             x: enemyToAffect.x + enemyToAffect.width / 2,
             y: enemyToAffect.y - 5,
-            vy: -55, life: 0.8, initialLife: 0.8, color: "#00FFFF", fontSize: 8, 
+            vy: -55, life: 0.8, initialLife: 0.8, color: "#00FFFF", fontSize: 10, 
         };
         setFloatingTexts(prev => [...prev, chillText]);
     }
@@ -1083,7 +1083,7 @@ const App: React.FC = () => {
               text: "CRÍTICO!",
               x: enemy.x + enemy.width / 2,
               y: enemy.y + enemy.height / 2 - 10,
-              vy: -88, life: 0.7, initialLife: 0.7, color: "#FF00FF", fontSize: 10, 
+              vy: -88, life: 0.7, initialLife: 0.7, color: "#FF00FF", fontSize: 12, 
             };
             setFloatingTexts(prev => [...prev, newCritText]);
             showDamageNumber = false; 
@@ -1105,7 +1105,7 @@ const App: React.FC = () => {
                 text: `${Math.round(damageDealt)}`,
                 x: enemy.x + enemy.width / 2,
                 y: enemy.y,
-                vy: -77, life: 0.65, initialLife: 0.65, color: damageTextColor, fontSize: 9,
+                vy: -77, life: 0.65, initialLife: 0.65, color: damageTextColor, fontSize: 11,
             };
             setFloatingTexts(prev => [...prev, damageText]);
           }
@@ -1324,7 +1324,7 @@ const App: React.FC = () => {
                       text: `${Math.round(damageFromBurn)}`,
                       x: enemy.x + enemy.width / 2,
                       y: enemy.y,
-                      vy: -66, life: 0.6, initialLife: 0.6, color: "#FFA500", fontSize: 8,
+                      vy: -66, life: 0.6, initialLife: 0.6, color: "#FFA500", fontSize: 10,
                   };
                   setFloatingTexts(prev => [...prev, burnText]);
 
@@ -1380,7 +1380,7 @@ const App: React.FC = () => {
         const newWaveNumber = currentWave + 1;
 
         if (newWaveNumber > lastClearedWaveRef.current + 1 && lastClearedWaveRef.current !== 0 && !playerRef.current.isAdmin) {
-            console.warn("Anti-Cheat: Pulo de onda detectado!");
+            console.warn("Anti-Cheat: Pulo de wave detectado!");
             hasSkippedWaveRef.current = true;
             handleGameOver();
             return;
@@ -1405,9 +1405,9 @@ const App: React.FC = () => {
         currentWaveConfigRef.current = { ...currentWaveConfigRef.current, spawnInterval };
         setTimeToNextWaveAction(spawnInterval);
         setWaveStatus('surgindo');
-        setCenterScreenMessage({ text: `Onda ${newWaveNumber} Chegando...`, duration: WAVE_ANNOUNCEMENT_DURATION, initialDuration: WAVE_ANNOUNCEMENT_DURATION, color: '#00FFFF', fontSize: 24 });
+        setCenterScreenMessage({ text: `Wave ${newWaveNumber} Chegando...`, duration: WAVE_ANNOUNCEMENT_DURATION, initialDuration: WAVE_ANNOUNCEMENT_DURATION, color: '#00FFFF', fontSize: 24 });
       } else {
-        setCenterScreenMessage({ text: `Próxima onda em ${Math.ceil(timeToNextWaveAction)}s`, duration: INTERMISSION_COUNTDOWN_UPDATE_INTERVAL, initialDuration: INTERMISSION_COUNTDOWN_UPDATE_INTERVAL, color: '#00DDDD', fontSize: 20 });
+        setCenterScreenMessage({ text: `Próxima Wave em ${Math.ceil(timeToNextWaveAction)}s`, duration: INTERMISSION_COUNTDOWN_UPDATE_INTERVAL, initialDuration: INTERMISSION_COUNTDOWN_UPDATE_INTERVAL, color: '#00DDDD', fontSize: 20 });
       }
     } else if (waveStatus === 'surgindo') {
       if (timeToNextWaveAction <= 0 && enemiesSpawnedThisWaveCount < enemiesToSpawnThisWave) {
@@ -1428,7 +1428,7 @@ const App: React.FC = () => {
         
         const intermission = INITIAL_WAVE_CONFIG.intermissionTime + (newlyClearedWave - 1) * WAVE_CONFIG_INCREMENTS.intermissionTimeIncrease;
         setTimeToNextWaveAction(intermission);
-        setCenterScreenMessage({text: `Onda ${newlyClearedWave} Neutralizada!`, duration: WAVE_ANNOUNCEMENT_DURATION, initialDuration: WAVE_ANNOUNCEMENT_DURATION, color: '#39FF14', fontSize: 22 });
+        setCenterScreenMessage({text: `Wave ${newlyClearedWave} Neutralizada!`, duration: WAVE_ANNOUNCEMENT_DURATION, initialDuration: WAVE_ANNOUNCEMENT_DURATION, color: '#39FF14', fontSize: 22 });
         setPlatforms(prevPlatforms => repositionAndResizeAllDynamicPlatforms(prevPlatforms));
         setPlayerProjectiles([]);
         setEnemyProjectiles([]);
@@ -1976,7 +1976,7 @@ const App: React.FC = () => {
         ctx.textAlign = 'right'; ctx.fillStyle = HUD_TEXT_COLOR;
         ctx.font = `${FONT_SIZE_MEDIUM}px ${PIXEL_FONT_FAMILY}`;
         ctx.shadowColor = HUD_TEXT_COLOR; ctx.shadowBlur = 3;
-        ctx.fillText(`Onda: ${currentWave > 0 ? currentWave : '-'}`, CANVAS_WIDTH - 20 * (CANVAS_WIDTH/1100), TEXT_Y_WAVE_INFO_TOP);
+        ctx.fillText(`Wave: ${currentWave > 0 ? currentWave : '-'}`, CANVAS_WIDTH - 20 * (CANVAS_WIDTH/1100), TEXT_Y_WAVE_INFO_TOP);
         ctx.fillText(`Tempo: ${Math.floor(gameTime)}s`, CANVAS_WIDTH - 20 * (CANVAS_WIDTH/1100), TEXT_Y_TIME_INFO_TOP);
         ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
 
@@ -2034,7 +2034,7 @@ const App: React.FC = () => {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = WAVE_PROGRESS_TEXT_COLOR;
-            ctx.fillText(`Progresso da Onda: ${Math.round(waveProgressPercentage * 100)}%`, WAVE_PROGRESS_BAR_X + WAVE_PROGRESS_BAR_WIDTH / 2, WAVE_PROGRESS_BAR_Y + WAVE_PROGRESS_BAR_HEIGHT / 2);
+            ctx.fillText(`Progresso da Wave: ${Math.round(waveProgressPercentage * 100)}%`, WAVE_PROGRESS_BAR_X + WAVE_PROGRESS_BAR_WIDTH / 2, WAVE_PROGRESS_BAR_Y + WAVE_PROGRESS_BAR_HEIGHT / 2);
             ctx.textBaseline = 'alphabetic'; 
 
         } 
@@ -2438,6 +2438,10 @@ const App: React.FC = () => {
     setGameState(GameState.StartMenu);
   };
 
+  const handleRestartGameFromGameOver = () => {
+    resetGame(player.nickname, undefined, player.selectedHatId, player.selectedStaffId);
+  }
+
   const handleAdminConfigChange = (field: keyof AdminConfig, value: any) => {
     setAdminConfig(prev => {
         let processedValue = value;
@@ -2512,6 +2516,7 @@ const App: React.FC = () => {
   const cosmeticItemSelectedClass = "border-yellow-400 bg-gray-600 shadow-[0_0_8px_theme(colors.yellow.400)]";
   const cosmeticItemUnselectedClass = "border-gray-500 bg-gray-800";
   const shopItemCardClass = "bg-gray-800 p-3 border-2 border-gray-700 rounded-md flex flex-col shadow-[0_0_5px_theme(colors.gray.700)]";
+  const leaderboardEntryCardClass = "bg-gray-800 border-2 border-cyan-700 rounded-md grid grid-cols-4 gap-2 items-center text-xs shadow-[0_0_8px_theme(colors.cyan.600)] py-3 px-3 mb-2";
 
 
   return (
@@ -2769,8 +2774,8 @@ const App: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                     <div>
-                        <label htmlFor="debugStartWave" className={`${adminLabelClass} block text-center`}>Onda Inicial:</label>
-                        <input type="number" id="debugStartWave" value={adminConfig.startWave} onChange={(e) => handleAdminConfigChange('startWave', e.target.value)} className={adminInputClass} aria-label="Onda Inicial Debug"/>
+                        <label htmlFor="debugStartWave" className={`${adminLabelClass} block text-center`}>Wave Inicial:</label>
+                        <input type="number" id="debugStartWave" value={adminConfig.startWave} onChange={(e) => handleAdminConfigChange('startWave', e.target.value)} className={adminInputClass} aria-label="Wave Inicial Debug"/>
                     </div>
                     <div>
                         <label htmlFor="debugXpMultiplier" className={`${adminLabelClass} block text-center`}>Multiplicador XP:</label>
@@ -2825,15 +2830,16 @@ const App: React.FC = () => {
                 {leaderboardEntries.length === 0 ? (
                     <p className="text-gray-400 text-sm">Nenhuma pontuação cósmica ainda. Seja o primeiro!</p>
                 ) : (
-                    <ol className="list-decimal list-inside text-left w-full max-w-md">
+                    <div className="w-full max-w-lg">
                         {leaderboardEntries.map((entry, index) => (
-                            <li key={index} className="py-2 px-2 mb-2 bg-gray-800 border border-gray-700 rounded-md grid grid-cols-4 gap-2 items-center text-xs shadow-[0_0_5px_theme(colors.gray.700)]">
-                                <span className="font-semibold text-indigo-300 col-span-2 truncate">{index + 1}. {entry.nickname}</span>
-                                <span className="text-gray-300 text-right">O: {entry.wave}</span>
+                            <div key={index} className={leaderboardEntryCardClass} >
+                                <span className="font-bold text-cyan-300 text-sm">{index + 1}.</span>
+                                <span className="font-semibold text-purple-300 col-span-1 truncate">{entry.nickname}</span>
+                                <span className="text-gray-300 text-right">W: {entry.wave}</span>
                                 <span className="text-gray-300 text-right">T: {entry.time}s</span>
-                            </li>
+                            </div>
                         ))}
-                    </ol>
+                    </div>
                 )}
                 <button onClick={handleBackToPreviousState} className={`${commonButtonClass} mt-4 sticky bottom-4`}>
                     Voltar
@@ -2908,20 +2914,44 @@ const App: React.FC = () => {
         )}
 
         {gameState === GameState.GameOver && (
-            <div className={`${panelBaseClass} justify-center text-center`} role="alertdialog" aria-labelledby="gameOverTitle">
-                <h2 id="gameOverTitle" className="text-4xl font-bold mb-3 text-red-500">Fim da Transmissão</h2>
-                <p className="text-base text-gray-300 mb-1">Combatente: {player.nickname}</p>
-                <p className="text-base text-gray-300 mb-1">Setor Alcançado: <span className="text-yellow-400 font-semibold">{currentWave}</span></p>
-                <p className="text-base text-gray-300 mb-1">Tempo de Sobrevivência: <span className="text-yellow-400 font-semibold">{Math.floor(gameTime)}s</span></p>
-                <p className="text-base text-gray-300 mb-4">Moedas Coletadas na Partida: <span className="text-yellow-400 font-semibold">{playerCoins - player.coins}</span></p>
-                <p className="text-base text-gray-300 mb-4">Total de Moedas: <span className="text-yellow-400 font-semibold">{playerCoins} 💰</span></p>
-                {player.selectedHatId === 'hat_fedora' && <p className="text-sm text-yellow-300 mb-3">(Pontuação não registrada devido ao Chapéu Fedora)</p>}
-                <button onClick={handleExitToMainMenu} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
-                    Menu Principal
-                </button>
-                 <button onClick={handleViewLeaderboard} className={`${commonButtonClass} mb-3 w-64 md:w-80`}>
-                    Placar Estelar
-                </button>
+            <div className={`${panelBaseClass} justify-center text-center p-4`} role="alertdialog" aria-labelledby="gameOverTitle">
+                <div className="bg-gray-800 border-2 border-cyan-500 p-5 md:p-6 rounded-lg shadow-[0_0_15px_theme(colors.cyan.600)] w-full max-w-lg md:max-w-xl">
+                    <h2 id="gameOverTitle" className="text-3xl md:text-4xl font-bold mb-5 text-red-500">FIM DE JOGO</h2>
+                    
+                    <div className="bg-gray-700 border border-cyan-600 p-4 rounded-md mb-6 text-left text-sm shadow-[0_0_8px_theme(colors.cyan.700)]">
+                        <div className="flex justify-between mb-2">
+                            <span className="text-gray-300">Combatente:</span>
+                            <span className="text-yellow-300 font-semibold">{player.nickname}</span>
+                        </div>
+                        <div className="flex justify-between mb-2">
+                            <span className="text-gray-300">Wave Alcançada:</span>
+                            <span className="text-yellow-300 font-semibold">{currentWave}</span>
+                        </div>
+                        <div className="flex justify-between mb-2">
+                            <span className="text-gray-300">Tempo de Sobrevivência:</span>
+                            <span className="text-yellow-300 font-semibold">{Math.floor(gameTime)}s</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-gray-300">Moedas Coletadas na Partida:</span>
+                            <span className="text-yellow-300 font-semibold">{playerCoins - player.coins} 💰</span>
+                        </div>
+                         {player.selectedHatId === 'hat_fedora' && 
+                            <p className="text-xs text-yellow-400 mt-3 text-center">(Pontuação não registrada devido ao Chapéu Fedora)</p>
+                         }
+                    </div>
+
+                    <div className="flex flex-col md:flex-row justify-around gap-3 w-full">
+                        <button onClick={handleRestartGameFromGameOver} className={`${commonButtonClass} flex-1`}>
+                            Reiniciar
+                        </button>
+                        <button onClick={handleViewLeaderboard} className={`${commonButtonClass} flex-1`}>
+                            Placar
+                        </button>
+                        <button onClick={handleExitToMainMenu} className={`${commonButtonClass} flex-1`}>
+                            Menu Principal
+                        </button>
+                    </div>
+                </div>
             </div>
         )}
 
