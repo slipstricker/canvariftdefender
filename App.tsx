@@ -715,13 +715,13 @@ const App: React.FC = () => {
         setEnemies(prev => [...prev, ...newMiniSplitters]);
     }
 
-    if (killedEnemy.enemyType === 'boss') {
+    if (killedEnemy.enemyType === 'boss' && !playerRef.current.isAdmin) {
         setEnemyProjectiles([]);
         setEnemies(prevEnemies => prevEnemies.filter(e => !e.isSummonedByBoss));
         
         const bossIndexInSequence = ALL_BOSS_WAVES.indexOf(currentWave);
-        if (bossIndexInSequence !== -1) { // Ensure currentWave is a defined boss wave
-            const coinsDropped = (bossIndexInSequence + 1) * 10; // Wave 5 (index 0) = 10, Wave 10 (index 1) = 20 etc.
+        if (bossIndexInSequence !== -1) { 
+            const coinsDropped = (bossIndexInSequence + 1) * 10; 
             setPlayerCoins(prevCoins => prevCoins + coinsDropped);
             const coinText: FloatingText = {
                 id: `bossCoin-${performance.now()}`,
@@ -733,8 +733,7 @@ const App: React.FC = () => {
             setFloatingTexts(prevFt => [...prevFt, coinText]);
             createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, coinsDropped * 2, '#FFDF00', 15, 200, 1.0, 'coin_pickup');
         }
-
-    } else if (!killedEnemy.isSummonedByBoss) { 
+    } else if (!killedEnemy.isSummonedByBoss && !playerRef.current.isAdmin) { 
         const baseDropChance = 0.15;
         const totalDropChance = baseDropChance + (playerRef.current.coinDropBonus || 0);
         if (Math.random() < totalDropChance) { 
