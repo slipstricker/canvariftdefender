@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig, DisplayedSkillInfo, FloatingText, AppliedStatusEffect, EnemyType, CosmeticUnlocksData, HatItem, StaffItem, CosmeticItem, ProjectileEffectType, EnemyUpdateResult, AlienVisualVariant, Star, Nebula, ParticleType, LeveledSkill } from './types';
+import { Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig, DisplayedSkillInfo, FloatingText, AppliedStatusEffect, EnemyType, CosmeticUnlocksData, HatItem, StaffItem, CosmeticItem, ProjectileEffectType, EnemyUpdateResult, AlienVisualVariant, Star, Nebula, ParticleType, LeveledSkill, CoinDrop } from './types';
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_INITIAL_HP, PLAYER_WIDTH, PLAYER_HEIGHT,
   XP_PER_LEVEL_BASE, XP_LEVEL_MULTIPLIER, GRAVITY,
@@ -146,6 +146,7 @@ interface CenterScreenMessage {
 const WAVE_ANNOUNCEMENT_DURATION = 5; 
 const BOSS_SUMMON_WARNING_UPDATE_INTERVAL = 1; 
 const INTERMISSION_COUNTDOWN_UPDATE_INTERVAL = 1.1; 
+const COIN_DROP_SIZE = 20;
 
 // Helper function to get damage color
 function getDamageColor(currentDamage: number, minDamage: number, maxDamage: number): string {
@@ -218,6 +219,7 @@ const App: React.FC = () => {
   const [particles, setParticles] = useState<Particle[]>([]);
   const [activeLightningBolts, setActiveLightningBolts] = useState<ActiveLightningBolt[]>([]);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
+  const [coinDrops, setCoinDrops] = useState<CoinDrop[]>([]);
 
   const [platforms, setPlatforms] = useState<Platform[]>(
     repositionAndResizeAllDynamicPlatforms(InitialStaticPlatforms.map(p => ({...p})))
@@ -255,6 +257,10 @@ const App: React.FC = () => {
 
   const playerProjectilesRef = useRef(playerProjectiles);
   useEffect(() => { playerProjectilesRef.current = playerProjectiles; }, [playerProjectiles]);
+
+  const coinDropsRef = useRef(coinDrops);
+  useEffect(() => { coinDropsRef.current = coinDrops; }, [coinDrops]);
+
 
   const gameStateRef = useRef(gameState);
  useEffect(() => {
@@ -752,77 +758,94 @@ const App: React.FC = () => {
         setEnemies(prev => [...prev, ...newMiniSplitters]);
     }
 
-    if (killedEnemy.enemyType === 'boss' && !playerRef.current.isAdmin) {
-        setEnemyProjectiles([]);
-        setEnemies(prevEnemies => prevEnemies.filter(e => !e.isSummonedByBoss));
-        
-        const bossIndexInSequence = ALL_BOSS_WAVES.indexOf(currentWave);
-        if (bossIndexInSequence !== -1) { 
-            const coinsDropped = (bossIndexInSequence + 1) * 10; 
-            setPlayerCoins(prevCoins => prevCoins + coinsDropped);
-            const coinText: FloatingText = {
-                id: `bossCoin-${performance.now()}`,
-                text: `+${coinsDropped} Moedas!`,
-                x: killedEnemy.x + killedEnemy.width / 2,
-                y: killedEnemy.y - 20,
-                vy: -90, life: 2, initialLife: 2, color: "#FFDF00", fontSize: 14,
-            };
-            setFloatingTexts(prevFt => [...prevFt, coinText]);
-            createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, coinsDropped * 2, '#FFDF00', 15, 200, 1.0, 'coin_pickup');
+    // Coin Drop Logic
+    if (!killedEnemy.isSummonedByBoss && !playerRef.current.isAdmin) {
+        let coinValue = 0;
+        let floatingTextSize = 20; // Default doubled size for normal coin
+        let floatingTextContent = "+1 Moeda!";
+
+        if (killedEnemy.enemyType === 'boss') {
+            const bossIndexInSequence = ALL_BOSS_WAVES.indexOf(currentWave);
+            if (bossIndexInSequence !== -1) { 
+                coinValue = (bossIndexInSequence + 1) * 10;
+                floatingTextSize = 28; // Doubled size for boss coin
+                floatingTextContent = `+${coinValue} Moedas!`;
+            }
+        } else {
+            const baseDropChance = 0.15;
+            const totalDropChance = baseDropChance + (playerRef.current.coinDropBonus || 0);
+            if (Math.random() < totalDropChance) {
+                coinValue = 1;
+            }
         }
-    } else if (!killedEnemy.isSummonedByBoss && !playerRef.current.isAdmin) { 
-        const baseDropChance = 0.15;
-        const totalDropChance = baseDropChance + (playerRef.current.coinDropBonus || 0);
-        if (Math.random() < totalDropChance) { 
-            setPlayerCoins(prevCoins => prevCoins + 1);
-             const coinText: FloatingText = {
-                id: `coin-${performance.now()}`,
-                text: "+1 Moeda!",
+
+        if (coinValue > 0) {
+            const newCoinDrop: CoinDrop = {
+                id: `coinDrop-${performance.now()}-${Math.random()}`,
+                x: killedEnemy.x + killedEnemy.width / 2 - COIN_DROP_SIZE / 2,
+                y: killedEnemy.y + killedEnemy.height / 2 - COIN_DROP_SIZE / 2,
+                width: COIN_DROP_SIZE,
+                height: COIN_DROP_SIZE,
+                value: coinValue,
+                vy: -200, // Initial upward pop
+                life: Infinity, // Stays until collected
+                draw: () => {}, // Drawing handled in main draw loop
+            };
+            setCoinDrops(prev => [...prev, newCoinDrop]);
+
+            const coinText: FloatingText = {
+                id: `coinText-${newCoinDrop.id}`,
+                text: floatingTextContent,
                 x: killedEnemy.x + killedEnemy.width / 2,
                 y: killedEnemy.y - 10,
-                vy: -80, life: 1, initialLife: 1, color: "#FFD700", fontSize: 10,
+                vy: -80, life: 1, initialLife: 1, color: "#FFD700", fontSize: floatingTextSize,
             };
             setFloatingTexts(prev => [...prev, coinText]);
-            createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, 5, '#FFD700', 10, 100, 0.7, 'coin_pickup');
+            // Particle effect for coin *drop* can be minimal or removed if pickup has one.
+            // createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, 3, '#FFD700', 8, 80, 0.5, 'generic');
         }
     }
 
 
     if (!killedEnemy.isSummonedByBoss) {
         setPlayer(p => {
+            let updatedPlayerState = { ...p }; 
+
             let xpEarned = killedEnemy.expValue;
-            xpEarned *= (p.xpBonus || 1); // Apply XP bonus
-            if (p.isAdmin && adminConfigRef.current.xpMultiplier) {
+            xpEarned *= (updatedPlayerState.xpBonus || 1); 
+            if (updatedPlayerState.isAdmin && adminConfigRef.current.xpMultiplier) {
                 xpEarned *= adminConfigRef.current.xpMultiplier;
             }
-            let updatedPlayerState = { ...p, exp: p.exp + xpEarned };
+            
+            updatedPlayerState.exp += xpEarned;
 
             if (killedEnemy.enemyType === 'boss') {
                 const newLevelBoss = updatedPlayerState.level + 1;
                 updatedPlayerState = {
                    ...updatedPlayerState,
                    level: newLevelBoss,
-                   xpToNextLevel: Math.floor(XP_PER_LEVEL_BASE * Math.pow(XP_LEVEL_MULTIPLIER, newLevelBoss -1 ))
+                   // exp remains as is (it's the "excess" from before the boss level)
+                   xpToNextLevel: Math.floor(XP_PER_LEVEL_BASE * Math.pow(XP_LEVEL_MULTIPLIER, newLevelBoss - 1))
                 };
-                 handleLevelUp();
-            } else {
+                handleLevelUp(); 
+            } else { 
                 let hasLeveledUpThisCycle = false;
                 while (updatedPlayerState.exp >= updatedPlayerState.xpToNextLevel) {
                     hasLeveledUpThisCycle = true;
+                    const xpAfterLevelUp = updatedPlayerState.exp - updatedPlayerState.xpToNextLevel; 
                     const newLevel = updatedPlayerState.level + 1;
-                    const previousXpThreshold = updatedPlayerState.xpToNextLevel;
                     updatedPlayerState = {
                         ...updatedPlayerState,
-                        exp: updatedPlayerState.exp - previousXpThreshold,
+                        exp: xpAfterLevelUp, 
                         level: newLevel,
-                        xpToNextLevel: Math.floor(XP_PER_LEVEL_BASE * Math.pow(XP_LEVEL_MULTIPLIER, newLevel -1 )),
+                        xpToNextLevel: Math.floor(XP_PER_LEVEL_BASE * Math.pow(XP_LEVEL_MULTIPLIER, newLevel - 1)),
                     };
                 }
                 if (hasLeveledUpThisCycle) {
-                    handleLevelUp();
+                    handleLevelUp(); 
                 }
             }
-            return updatedPlayerState;
+            return updatedPlayerState; 
         });
     }
   }, [gameContextForUpgrades, handleLevelUp, createParticleEffect, currentWave, adminConfigRef]);
@@ -1500,8 +1523,63 @@ const App: React.FC = () => {
       prevBolts.map(bolt => ({...bolt, life: bolt.life - currentDeltaTime}))
                .filter(bolt => bolt.life > 0)
     );
+
+    // Update Coin Drops
+    const updatedCoinDrops = coinDropsRef.current.map(coin => {
+        let newCoinVy = (coin.vy ?? 0) + GRAVITY * currentDeltaTime;
+        let newCoinY = coin.y + newCoinVy * currentDeltaTime;
+        let coinOnGround = false;
+
+        for (const platform of platforms) {
+            if (!platform.isVisible || platform.currentAlpha < 0.5) continue;
+            if (newCoinVy > 0 && 
+                coin.x + coin.width > platform.x && 
+                coin.x < platform.x + platform.width &&
+                (coin.y + coin.height) <= (platform.y + 1) && 
+                (newCoinY + coin.height) >= platform.y) {
+                newCoinY = platform.y - coin.height;
+                newCoinVy = 0;
+                coinOnGround = true;
+                break; 
+            }
+        }
+        // Check ground collision if not on a dynamic platform
+        if (!coinOnGround && newCoinY + coin.height > CANVAS_HEIGHT) {
+            newCoinY = CANVAS_HEIGHT - coin.height;
+            newCoinVy = 0;
+        }
+
+        return { ...coin, y: newCoinY, vy: newCoinVy };
+    }).filter(coin => coin.life > 0); // Assuming life can be used for timeout later if needed
+
+    setCoinDrops(updatedCoinDrops);
+    
+    // Player collecting coins
+    const playerHitbox = playerRef.current;
+    const remainingCoinsAfterPickup: CoinDrop[] = [];
+    let collectedAnyCoin = false;
+
+    for (const coin of coinDropsRef.current) {
+        if (
+            playerHitbox.x < coin.x + coin.width &&
+            playerHitbox.x + playerHitbox.width > coin.x &&
+            playerHitbox.y < coin.y + coin.height &&
+            playerHitbox.y + playerHitbox.height > coin.y
+        ) {
+            setPlayerCoins(prev => prev + coin.value);
+            createParticleEffect(coin.x + coin.width / 2, coin.y + coin.height / 2, 8, '#FFDF00', 12, 150, 0.6, 'coin_pickup');
+            collectedAnyCoin = true;
+            // Don't add to remainingCoinsAfterPickup
+        } else {
+            remainingCoinsAfterPickup.push(coin);
+        }
+    }
+    if(collectedAnyCoin) {
+       setCoinDrops(remainingCoinsAfterPickup);
+    }
+    
     checkCollisions();
-  }, [gameStateRef, checkCollisions, handleEnemyDeath, gameContextForUpgrades.addEnemyProjectile, currentWave, waveStatus, enemiesToSpawnThisWave, enemiesSpawnedThisWaveCount, timeToNextWaveAction, createParticleEffect, handleGameOver, handleExplosion, adminConfigRef, centerScreenMessage]);
+  }, [gameStateRef, checkCollisions, handleEnemyDeath, gameContextForUpgrades.addEnemyProjectile, currentWave, waveStatus, enemiesToSpawnThisWave, enemiesSpawnedThisWaveCount, timeToNextWaveAction, createParticleEffect, handleGameOver, handleExplosion, adminConfigRef, centerScreenMessage, platforms]);
 
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -1575,6 +1653,25 @@ const App: React.FC = () => {
             }
             ctx.globalAlpha = 1;
         });
+
+        coinDropsRef.current.forEach(coin => {
+            ctx.font = `bold ${coin.height * 0.9}px ${PIXEL_FONT_FAMILY}`; // Adjusted size based on coin height
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#FFD700'; // Gold color
+             // Shadow for depth
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.shadowBlur = 2;
+            ctx.fillText('💰', coin.x + coin.width / 2, coin.y + coin.height / 2);
+            // Reset shadow
+            ctx.shadowColor = 'transparent';
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.shadowBlur = 0;
+        });
+
 
         if (gameStateRef.current === GameState.Playing && displayedSkills.length > 0) {
             const groundPlatform = platforms.find(p => p.id === 'ground');
@@ -2153,7 +2250,7 @@ const App: React.FC = () => {
         ctx.restore(); // Restore from shake translation
     }
 
-  }, [gameTime, gameStateRef, platforms, centerScreenMessage, currentWave, stars, nebulae, timeToNextWaveAction, waveStatus, playerProjectiles, enemyProjectiles, particles, activeLightningBolts, displayedSkills, hoveredSkillTooltip, floatingTexts, createParticleEffect, isMuted, volume, enemiesToSpawnThisWave, playerCoins, screenShake]); 
+  }, [gameTime, gameStateRef, platforms, centerScreenMessage, currentWave, stars, nebulae, timeToNextWaveAction, waveStatus, playerProjectiles, enemyProjectiles, particles, activeLightningBolts, displayedSkills, hoveredSkillTooltip, floatingTexts, createParticleEffect, isMuted, volume, enemiesToSpawnThisWave, playerCoins, screenShake, coinDrops]); 
 
   useEffect(() => {
     let animationFrameId: number;
@@ -2364,7 +2461,7 @@ const App: React.FC = () => {
     newPlayerState.purchasedPermanentSkills = purchasedPermanentSkillsState;
     newPlayerState = applyPermanentSkillEffectsToPlayer(newPlayerState); 
     
-    newPlayerState.coins = playerCoins; 
+    newPlayerState.coins = playerCoins; // Set current total coins for the session (might be > 0 if loaded)
 
 
     if (currentAdminConfig?.isAdminEnabled) { // Apply selected skills after all base stats and item effects are set
@@ -2389,6 +2486,7 @@ const App: React.FC = () => {
     setParticles([]);
     setActiveLightningBolts([]);
     setFloatingTexts([]);
+    setCoinDrops([]); // Reset coin drops
     setAvailableUpgrades(InitialUpgrades.map(u => ({...u})));
     setCurrentOfferedUpgradesForSelection([]);
     setCurrentPicksAllowedForSelection(0);

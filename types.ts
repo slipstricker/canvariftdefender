@@ -394,3 +394,9 @@ export interface Nebula {
   opacity: number;
   rotation: number;
 }
+
+export interface CoinDrop extends GameObject {
+  id: string;
+  value: number;
+  life: number; // Time before it disappears, or Infinity
+}
