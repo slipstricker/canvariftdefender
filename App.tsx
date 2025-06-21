@@ -648,6 +648,13 @@ const App: React.FC = () => {
 
   const handleLevelUp = useCallback(() => {
     setGameState(GameState.ChoosingUpgrade);
+    // Reset key states to prevent sticky movement/actions
+    keysRef.current.a = false;
+    keysRef.current.d = false;
+    keysRef.current.space = false;
+    keysRef.current.shift = false;
+    mouseStateRef.current.isDown = false; // Also reset mouse down state
+
     setPlayer(p => ({...p, usedFreeRerollThisLevelUp: false}));
 
     const currentAppraisalChoices = playerRef.current.appraisalChoices;
