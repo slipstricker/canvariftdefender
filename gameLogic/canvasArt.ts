@@ -51,12 +51,12 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.save();
   ctx.translate(pX, pY);
 
-  const robeColorPrimary = '#1E1B32'; // Deep space blue/purple
-  const robeColorAccent = '#4A00E0'; // Brighter purple/blue for glow/runes
-  const skinColor = '#B0C4DE'; // Light Steel Blue (slightly alien)
-  const beardColor = '#E0FFFF'; // Light Cyan / Silvery-blue (cosmic beard)
-  const shoeColor = '#100C22'; // Very dark blue for shoes
-  const eyeColor = '#00FFFF'; // Cyan (glowing eyes)
+  const robeColorPrimary = '#6A5ACD'; // Lighter: Slate Blue
+  const robeColorAccent = '#8A7FFF';  // Lighter: Light Slate Blue
+  const skinColor = '#B8CCE2';       // Slightly lighter skin
+  const beardColor = '#E8FFFF';     // Slightly lighter beard
+  const shoeColor = '#2A2F5A';      // Darker Slate Blue for shoes
+  const eyeColor = '#00FFFF';       // Cyan (glowing eyes)
 
   const bodyWidth = pW * 0.75;
   const bodyHeight = pH * 0.85;
@@ -71,16 +71,14 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   const shoeWidth = pW * 0.28;
   const shoeHeight = pH * 0.12;
   ctx.fillStyle = shoeColor;
-  // Adjusted shoe drawing order for potential overlap
   ctx.fillRect(pW/2 - bodyWidth/2 + legOffset + shoeWidth*0.15, pH - shoeHeight + idleBob, shoeWidth, shoeHeight);
   ctx.fillRect(pW/2 + bodyWidth/2 - shoeWidth*1.15 - legOffset, pH - shoeHeight + idleBob, shoeWidth, shoeHeight);
 
 
-  // Main Robe Shape with gradient
   const gradient = ctx.createLinearGradient(pW/2, bodyYOffset + idleBob, pW/2, pH + idleBob);
   gradient.addColorStop(0, robeColorAccent);
   gradient.addColorStop(0.3, robeColorPrimary);
-  gradient.addColorStop(1, '#0A081A'); // Even darker base
+  gradient.addColorStop(1, '#3A3F78'); // Lighter Darker Slate Blue
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.moveTo(pW/2 - bodyWidth/2, bodyYOffset + bodyHeight * 0.15 + idleBob); 
@@ -90,22 +88,21 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.closePath();
   ctx.fill();
 
-  // Subtle star-like patterns or runes on robe
-  ctx.fillStyle = `rgba(173, 216, 230, ${0.3 + Math.sin(gameTime * 1.5) * 0.1})`; // Light blue, subtly pulsing
+  ctx.fillStyle = `rgba(190, 220, 255, ${0.3 + Math.sin(gameTime * 1.5) * 0.1})`; 
   const runeCount = 5;
   for (let i = 0; i < runeCount; i++) {
-    const runeX = pW/2 + (Math.random() - 0.5) * bodyWidth * 0.7; // Random placement per frame - could be made static
+    const runeX = pW/2 + (Math.random() - 0.5) * bodyWidth * 0.7; 
     const runeY = bodyYOffset + bodyHeight * (0.3 + Math.random() * 0.6) + idleBob;
     const runeSize = pW * (0.02 + Math.random() * 0.02);
     ctx.beginPath();
     ctx.arc(runeX, runeY, runeSize, 0, Math.PI * 2);
     ctx.fill();
     if (i % 2 === 0) { 
-        ctx.fillStyle = `rgba(220, 240, 255, ${0.4 + Math.sin(gameTime * 1.5 + i) * 0.15})`;
+        ctx.fillStyle = `rgba(230, 245, 255, ${0.4 + Math.sin(gameTime * 1.5 + i) * 0.15})`;
         ctx.beginPath();
         ctx.arc(runeX, runeY, runeSize * 0.5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = `rgba(173, 216, 230, ${0.3 + Math.sin(gameTime * 1.5) * 0.1})`;
+        ctx.fillStyle = `rgba(190, 220, 255, ${0.3 + Math.sin(gameTime * 1.5) * 0.1})`;
     }
   }
 
@@ -118,13 +115,12 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
   ctx.fill();
   
-  ctx.fillStyle = '#9CB0C9'; 
+  ctx.fillStyle = '#A8BBC9'; // Lighter nose
   const noseRadius = headRadius * 0.2;
   ctx.beginPath();
   ctx.arc(headX, headY + headRadius * 0.15, noseRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Glowing Eyes
   const eyeRadius = headRadius * 0.2;
   const eyeOffsetY = headY - headRadius * 0.15;
   const eyeSeparation = headRadius * 0.45;
@@ -140,7 +136,6 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
 
-  // Beard
   ctx.fillStyle = beardColor;
   ctx.globalAlpha = 0.9;
   ctx.beginPath();
@@ -186,110 +181,280 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
   ctx.save();
   ctx.translate(hatDrawX, hatDrawY);
 
-  const primarySpaceColor = '#2C3E50'; // Dark Slate Blue
-  const accentSpaceColor = '#8E44AD'; // Purple
-  const crystalColor = '#00BCD4';     // Cyan
+  const primarySpaceColor = '#3D4A70'; // Darker Slate Blue for contrast
+  const accentSpaceColor = '#94A5D0'; // Lighter Slate Blue/Purple for accents
+  const crystalColor = '#00E0E0';     // Bright Cyan
+  const metallicSilver = '#C0C0C0';
+  const metallicGold = '#FFD700';
+
 
   switch (hat.id) {
-    case 'hat_wizard': // Cosmic Wizard Hat
-      const wizHatHeight = baseHatHeight * 1.7;
-      const wizHatBaseWidth = baseHatWidth * 0.8;
-      const wizHatBrimWidth = wizHatBaseWidth * 1.2;
-      const wizHatBrimHeight = wizHatHeight * 0.12;
+    case 'hat_wizard': // Cosmic Wizard Hat - UNCHANGED
+      const wizHatHeight = baseHatHeight * 2.0; 
+      const wizHatBaseWidth = baseHatWidth * 0.7;
+      const wizHatBrimWidth = wizHatBaseWidth * 1.4; 
+      const wizHatBrimHeight = wizHatHeight * 0.10;
       
       ctx.fillStyle = primarySpaceColor;
       ctx.beginPath();
-      ctx.ellipse(0, wizHatBrimHeight * 0.4, wizHatBrimWidth / 2, wizHatBrimHeight / 2, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, wizHatBrimHeight * 0.4, wizHatBrimWidth / 2, wizHatBrimHeight / 1.8, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = metallicSilver;
+      ctx.lineWidth = pH * 0.015;
+      ctx.stroke();
       
+      const coneGrad = ctx.createLinearGradient(0, -wizHatHeight + wizHatBrimHeight, 0, wizHatBrimHeight * 0.1);
+      coneGrad.addColorStop(0, accentSpaceColor);
+      coneGrad.addColorStop(1, primarySpaceColor);
+      ctx.fillStyle = coneGrad;
       ctx.beginPath();
       ctx.moveTo(0, -wizHatHeight + wizHatBrimHeight); 
-      ctx.lineTo(-wizHatBaseWidth / 2.2, wizHatBrimHeight * 0.1); 
-      ctx.lineTo(wizHatBaseWidth / 2.2, wizHatBrimHeight * 0.1); 
+      ctx.lineTo(-wizHatBaseWidth / 2.0, wizHatBrimHeight * 0.1); 
+      ctx.lineTo(wizHatBaseWidth / 2.0, wizHatBrimHeight * 0.1); 
       ctx.closePath();
       ctx.fill();
 
-      // Add a small orbiting moon/star - animated, should be static if requested
-      const orbitRadius = wizHatBaseWidth * 0.3;
-      const staticAngle = (player.nickname?.charCodeAt(0) || 0) % (Math.PI*2); // Example static angle
-      const moonX = Math.cos(staticAngle + gameTime * 0) * orbitRadius; // Removed gameTime multiplication for orbit
-      const moonY = -wizHatHeight * 0.6 + Math.sin(staticAngle + gameTime * 0) * orbitRadius * 0.5;
-      ctx.fillStyle = '#F1C40F'; // Gold for star/moon
-      ctx.beginPath();
-      ctx.arc(moonX, moonY, wizHatBaseWidth * 0.08, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-
-    case 'hat_helmet': // Futuristic Space Helmet
-      const helmetWidth = baseHatWidth * 0.9;
-      const helmetHeight = baseHatHeight * 0.8;
-      ctx.fillStyle = '#7F8C8D'; // Metallic Grey
-      ctx.beginPath();
-      ctx.arc(0, -helmetHeight*0.35, helmetWidth/2, Math.PI, 0); 
-      ctx.rect(-helmetWidth/2, -helmetHeight*0.35, helmetWidth, helmetHeight*0.7); 
-      ctx.fill();
-      // Visor
-      ctx.fillStyle = hexToRgba(crystalColor, 0.6); // Translucent Cyan Visor
-      ctx.beginPath();
-      ctx.ellipse(0, -helmetHeight*0.2, helmetWidth*0.35, helmetHeight*0.25, 0,0, Math.PI*2);
-      ctx.fill();
-      ctx.strokeStyle = crystalColor;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      break;
-
-    case 'hat_propeller_beanie': // Mini Galaxy/Orbiting Comets - make comets static
-      const galaxyRadius = baseHatWidth * 0.3;
-      const galGrad = ctx.createRadialGradient(0,0,0, 0,0,galaxyRadius);
-      galGrad.addColorStop(0, hexToRgba(accentSpaceColor, 0.8));
-      galGrad.addColorStop(1, hexToRgba(primarySpaceColor, 0.3));
-      ctx.fillStyle = galGrad;
-      ctx.beginPath();
-      ctx.arc(0, -baseHatHeight * 0.3, galaxyRadius, 0, Math.PI * 2);
-      ctx.fill();
-      for(let i=0; i<3; i++){
-          ctx.fillStyle = `rgba(220, 220, 255, ${0.6 + ((i*37)%20)/100.0 *0.2 })`; // Static alpha
-          const cometAngle = ( (i*97) % (Math.PI*200) ) / 100.0; // Static angle
-          const cX = Math.cos(cometAngle) * galaxyRadius * 1.5;
-          const cY = -baseHatHeight * 0.3 + Math.sin(cometAngle) * galaxyRadius * 0.7;
-          ctx.beginPath();
-          ctx.arc(cX, cY, pH * 0.03, 0, Math.PI*2);
-          ctx.fill();
+      ctx.fillStyle = `rgba(220, 240, 255, 0.5)`;
+      for (let i = 0; i < 5; i++) {
+        const starX = (Math.random() - 0.5) * wizHatBaseWidth * 0.4;
+        const starY = -wizHatHeight * (0.2 + Math.random() * 0.5) + wizHatBrimHeight;
+        const starSize = wizHatBaseWidth * (0.03 + Math.random()*0.02);
+        ctx.beginPath(); ctx.arc(starX, starY, starSize, 0, Math.PI*2); ctx.fill();
       }
+
+      const crystalTipY = -wizHatHeight + wizHatBrimHeight - pH * 0.05;
+      ctx.fillStyle = crystalColor;
+      ctx.shadowColor = crystalColor; ctx.shadowBlur = 5;
+      ctx.beginPath();
+      ctx.moveTo(0, crystalTipY - pH * 0.06);
+      ctx.lineTo(pH * 0.03, crystalTipY);
+      ctx.lineTo(0, crystalTipY + pH * 0.06);
+      ctx.lineTo(-pH * 0.03, crystalTipY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       break;
+
+    case 'hat_helmet': // Alien Tech Helmet - NEW DESIGN
+      const helmetW = baseHatWidth * 0.9;
+      const helmetH = baseHatHeight * 0.8;
+      const helmetBaseColor = '#4A5568'; // Dark metallic grey
+      const helmetAccentColor = '#718096'; // Lighter metallic
+      const helmetGlowColor = '#4FD1C5'; // Teal
+
+      // Asymmetrical main shell
+      ctx.fillStyle = helmetBaseColor;
+      ctx.beginPath();
+      ctx.moveTo(-helmetW * 0.5, -helmetH * 0.3); // Top left
+      ctx.quadraticCurveTo(-helmetW * 0.6, 0, -helmetW * 0.45, helmetH * 0.4); // Left side bulge
+      ctx.lineTo(helmetW * 0.4, helmetH * 0.45); // Bottom right
+      ctx.quadraticCurveTo(helmetW * 0.55, 0, helmetW * 0.45, -helmetH * 0.35); // Right side
+      ctx.closePath();
+      ctx.fill();
+
+      // Accent panels
+      ctx.fillStyle = helmetAccentColor;
+      ctx.beginPath();
+      ctx.moveTo(-helmetW * 0.4, -helmetH * 0.25);
+      ctx.lineTo(-helmetW * 0.2, -helmetH * 0.35);
+      ctx.lineTo(-helmetW * 0.25, helmetH * 0.1);
+      ctx.closePath();
+      ctx.fill();
+
+      // Singular optical sensor (visor)
+      ctx.fillStyle = helmetGlowColor;
+      ctx.shadowColor = helmetGlowColor; ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.ellipse(helmetW * 0.1, -helmetH * 0.05, helmetW * 0.3, helmetH * 0.2, 0, 0, Math.PI * 2); // Almond shape
+      ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       
-    case 'hat_crown': // Stardust Crystal Crown
-      const crownH = baseHatHeight * 0.7;
-      const crownW = baseHatWidth * 0.85;
-      ctx.fillStyle = hexToRgba(crystalColor, 0.5); 
-      ctx.fillRect(-crownW/2, -crownH*0.05, crownW, crownH*0.15); // Band
-      const numPoints = 5;
-      for (let i = 0; i < numPoints; i++) {
-        const pX = (-crownW/2) + (i * crownW/(numPoints-1));
-        const pHFactor = (i%2 === 0 ? 0.75 : 0.5);
-        ctx.fillStyle = hexToRgba(crystalColor, 0.6 + ((i*53)%30)/100.0*0.2); // Static alpha
-        ctx.shadowColor = crystalColor;
-        ctx.shadowBlur = 3 + ((i*23)%30)/10.0*3; // Static blur
+      // Glowing conduits
+      ctx.strokeStyle = helmetGlowColor; ctx.lineWidth = pH * 0.015;
+      ctx.beginPath();
+      ctx.moveTo(-helmetW * 0.3, helmetH * 0.3);
+      ctx.quadraticCurveTo(-helmetW * 0.1, helmetH * 0.1, 0, -helmetH * 0.1);
+      ctx.quadraticCurveTo(helmetW * 0.2, -helmetH * 0.25, helmetW * 0.4, -helmetH * 0.1);
+      ctx.stroke();
+
+      // Small antenna
+      ctx.fillStyle = helmetAccentColor;
+      ctx.beginPath();
+      ctx.moveTo(helmetW * 0.35, -helmetH * 0.3);
+      ctx.lineTo(helmetW * 0.45, -helmetH * 0.5);
+      ctx.lineTo(helmetW * 0.4, -helmetH * 0.55);
+      ctx.closePath();
+      ctx.fill();
+      break;
+
+    case 'hat_propeller_beanie': // Living Nebula Beanie - NEW DESIGN
+      const beanieR = baseHatWidth * 0.48;
+      const beanieH = baseHatHeight * 0.7;
+      const nebulaCols = ['#2B316C', '#4A00E0', '#8E44AD', '#C71585']; // Deep Indigo, Purple, Violet, MediumVioletRed
+      const starCol = '#FFFFE0'; // LightYellow
+
+      // Nebula effect (multiple layers)
+      for (let i = 0; i < 4; i++) {
+        const swirlAngle = gameTime * 0.1 + i * Math.PI / 2; // Slow swirl
+        const swirlRadiusX = beanieR * (0.6 + Math.sin(swirlAngle * 0.5 + i) * 0.2);
+        const swirlRadiusY = beanieR * (0.4 + Math.cos(swirlAngle * 0.7 + i) * 0.15);
+        ctx.fillStyle = hexToRgba(nebulaCols[i % nebulaCols.length], 0.3 + Math.random()*0.1); // Add slight random alpha
         ctx.beginPath();
-        ctx.moveTo(pX, -crownH*0.05);
-        ctx.lineTo(pX - crownW*0.05, -crownH*(0.05 + pHFactor) );
-        ctx.lineTo(pX + crownW*0.05, -crownH*(0.05 + pHFactor) );
-        ctx.closePath();
+        ctx.ellipse(
+            Math.cos(swirlAngle + i) * beanieR * 0.1, // Offset center for more dynamism
+            -beanieH * 0.35 + Math.sin(swirlAngle * 1.2 + i) * beanieR * 0.1,
+            swirlRadiusX, swirlRadiusY,
+            swirlAngle * 0.3, // Rotate ellipse itself
+            0, Math.PI * 2
+        );
         ctx.fill();
+      }
+      
+      // Beanie main shape (dark base for nebula to pop)
+      ctx.fillStyle = '#1A1D36'; // Very dark blue
+      ctx.beginPath();
+      ctx.arc(0, -beanieH * 0.25, beanieR, Math.PI, 0); // Upper part of beanie
+      ctx.ellipse(0, -beanieH*0.25 + beanieR*0.75, beanieR, beanieR*0.25, 0, 0, Math.PI); // Connect to brim
+      ctx.closePath();
+      ctx.fill();
+
+      // Rolled-up brim
+      ctx.fillStyle = '#2C3E50'; // Dark Slate Blue
+      ctx.beginPath();
+      ctx.ellipse(0, -beanieH * 0.25 + beanieR * 0.75, beanieR, beanieR * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Static star gems (twinkling)
+      ctx.shadowColor = starCol;
+      for(let i=0; i<5; i++){
+          const gemX = (Math.random() - 0.5) * beanieR * 1.5;
+          const gemY = -beanieH * 0.4 + (Math.random() - 0.5) * beanieR * 0.8;
+          const twinkleAlpha = 0.6 + Math.sin(gameTime * (2 + Math.random()*2) + i) * 0.4;
+          ctx.fillStyle = hexToRgba(starCol, twinkleAlpha); 
+          ctx.shadowBlur = Math.random() * 3 + 2;
+          ctx.beginPath(); ctx.arc(gemX, gemY, pH * (0.015 + Math.random()*0.01), 0, Math.PI*2); ctx.fill();
       }
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       break;
       
-    default: // Generic spacey cap
-      ctx.fillStyle = primarySpaceColor;
-      const defaultHatH = baseHatHeight * 0.6;
-      const defaultHatW = baseHatWidth * 0.7;
+    case 'hat_crown': // Celestial Orbit Crown - NEW DESIGN
+      const crownBaseH = baseHatHeight * 0.3; // Lower profile for crown base
+      const crownBaseW = baseHatWidth * 0.85;
+      const bandColor = '#2D3748'; // Dark Gunmetal
+      const focalCrystalColor = '#E0FFFF'; // Light Cyan
+      hatDrawY += pH*0.1; // Adjust Y position slightly higher for crown
+
+      // Main band
+      ctx.fillStyle = bandColor;
       ctx.beginPath();
-      ctx.roundRect(-defaultHatW/2, -defaultHatH, defaultHatW, defaultHatH, defaultHatW*0.15);
+      ctx.rect(-crownBaseW / 2, -crownBaseH * 0.3, crownBaseW, crownBaseH * 0.6);
+      ctx.fill();
+      
+      // Orbiting elements
+      const orbitRadius = crownBaseW * 0.6;
+      const numOrbs = 2;
+      const orbColors = ['#60A5FA', '#F87171', '#FBBF24']; // Blue, Red, Gold
+      for(let i=0; i<numOrbs; i++) {
+          const angle = gameTime * (0.5 + i*0.1) + i * Math.PI; // Different speeds and starting points
+          const orbX = Math.cos(angle) * orbitRadius;
+          const orbY = -crownBaseH * 0.1 + Math.sin(angle * 0.5) * crownBaseH * 0.4; // Elliptical orbit (Y plane)
+          const orbSize = pH * (0.02 + Math.random()*0.01);
+          ctx.fillStyle = orbColors[i % orbColors.length];
+          ctx.beginPath();
+          ctx.arc(orbX, orbY, orbSize, 0, Math.PI*2);
+          ctx.fill();
+      }
+      // Star fragments
+      for(let i=0; i<3; i++) {
+        const angle = gameTime * (0.8 + i*0.2) + i * Math.PI * 0.7;
+        const fragX = Math.cos(angle) * orbitRadius * 0.8;
+        const fragY = -crownBaseH * 0.1 + Math.sin(angle * 0.6) * crownBaseH * 0.5;
+        const fragSize = pH * 0.015;
+        ctx.fillStyle = metallicGold;
+        ctx.beginPath(); // Simple square fragment
+        ctx.rect(fragX - fragSize/2, fragY - fragSize/2, fragSize, fragSize);
+        ctx.fill();
+      }
+
+      // Focal crystal (pulsing)
+      const pulse = 0.7 + Math.sin(gameTime * 2) * 0.3;
+      ctx.fillStyle = hexToRgba(focalCrystalColor, pulse);
+      ctx.shadowColor = focalCrystalColor; ctx.shadowBlur = 10 * pulse;
+      const crystalH = crownBaseH * 1.5;
+      const crystalW = crownBaseW * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(0, -crystalH); // Tip
+      ctx.lineTo(-crystalW, -crownBaseH * 0.2);
+      ctx.lineTo(crystalW, -crownBaseH * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      break;
+      
+    case 'hat_basic_cap': // Star Voyager's Hood - NEW DESIGN (replaces default cap)
+        const hoodH = baseHatHeight * 1.1; // Hood covers more
+        const hoodW = baseHatWidth * 0.9;
+        const hoodColor = '#3C366B'; // Deep Indigo
+        const hoodGlowColor = '#93C5FD'; // Light Blue
+        hatDrawY += pH * 0.05; // Adjust Y to sit properly as a hood
+
+        // Main hood shape
+        ctx.fillStyle = hoodColor;
+        ctx.beginPath();
+        ctx.moveTo(-hoodW * 0.5, -hoodH * 0.8); // Top back left
+        ctx.quadraticCurveTo(0, -hoodH * 0.95, hoodW * 0.5, -hoodH * 0.8); // Top curve
+        ctx.lineTo(hoodW * 0.4, hoodH * 0.1); // Bottom right opening edge
+        ctx.quadraticCurveTo(0, hoodH * 0.25, -hoodW * 0.4, hoodH * 0.1); // Bottom opening curve
+        ctx.closePath();
+        ctx.fill();
+
+        // Drape over shoulders slightly (optional detail)
+        ctx.beginPath();
+        ctx.moveTo(-hoodW * 0.35, hoodH * 0.05);
+        ctx.quadraticCurveTo(-hoodW * 0.45, hoodH * 0.3, -hoodW*0.25, hoodH * 0.2);
+        ctx.quadraticCurveTo(0, hoodH*0.4, hoodW*0.25, hoodH * 0.2);
+        ctx.quadraticCurveTo(hoodW * 0.45, hoodH * 0.3, hoodW * 0.35, hoodH * 0.05);
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // Glowing trim or constellation
+        ctx.strokeStyle = hoodGlowColor;
+        ctx.lineWidth = pH * 0.015;
+        ctx.shadowColor = hoodGlowColor; ctx.shadowBlur = 5;
+        
+        // Trim around opening
+        ctx.beginPath();
+        ctx.moveTo(hoodW * 0.4, hoodH * 0.1); 
+        ctx.quadraticCurveTo(0, hoodH * 0.25, -hoodW * 0.4, hoodH * 0.1);
+        ctx.stroke();
+
+        // Simple constellation (e.g., Orion's belt dots)
+        const starSizeHood = pH * 0.01;
+        ctx.fillStyle = hoodGlowColor;
+        const constX = -hoodW * 0.2; 
+        const constYBase = -hoodH * 0.3;
+        ctx.beginPath(); ctx.arc(constX, constYBase, starSizeHood, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(constX + hoodW*0.08, constYBase - hoodH*0.05, starSizeHood, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(constX + hoodW*0.16, constYBase - hoodH*0.1, starSizeHood, 0, Math.PI*2); ctx.fill();
+
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      break;
+
+    default: // Fallback if an unknown hat ID is somehow used
+      const capH_default = baseHatHeight * 0.65;
+      const capW_default = baseHatWidth * 0.75;
+      ctx.fillStyle = primarySpaceColor;
+      ctx.beginPath();
+      ctx.roundRect(-capW_default/2, -capH_default, capW_default, capH_default*0.8, capW_default*0.1);
       ctx.fill();
       ctx.fillStyle = accentSpaceColor;
       ctx.beginPath();
-      ctx.arc(0, -defaultHatH * 0.7, defaultHatW * 0.15, 0, Math.PI*2);
+      ctx.ellipse(0, -capH_default*0.2, capW_default*0.55, capH_default*0.25, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.fillStyle = metallicSilver;
+      ctx.beginPath();
+      ctx.arc(0, -capH_default * 0.65, capW_default * 0.12, 0, Math.PI*2);
       ctx.fill();
       break;
   }
@@ -395,9 +560,9 @@ export function drawStaffCanvas(
     ctx.fillStyle = tipAccentColor; ctx.beginPath(); ctx.arc(tipX, tipY, baseTipRadius * 0.7, 0, Math.PI * 2); ctx.fill();
     const plasmaGrad = ctx.createRadialGradient(tipX, tipY, baseTipRadius*0.5, tipX, tipY, baseTipRadius*1.2); plasmaGrad.addColorStop(0, hexToRgba(tipPrimaryColor, 0.8)); plasmaGrad.addColorStop(1, hexToRgba(tipPrimaryColor, 0)); ctx.fillStyle = plasmaGrad; ctx.beginPath(); ctx.arc(tipX, tipY, baseTipRadius*1.2, 0, Math.PI * 2); ctx.fill();
   } else if (tipShape === 'nebula_swirl') {
-    const nebulaColors = ['#E74C3C', '#8E44AD', '#3498DB', '#1ABC9C', '#F1C40F'];
+    const nebulaColorsStaff = ['#E74C3C', '#8E44AD', '#3498DB', '#1ABC9C', '#F1C40F'];
     for(let i=0; i<3; i++){
-        ctx.fillStyle = hexToRgba(nebulaColors[i % nebulaColors.length], 0.3 + ((i*29)%20)/100.0 *0.2); // Static alpha
+        ctx.fillStyle = hexToRgba(nebulaColorsStaff[i % nebulaColorsStaff.length], 0.3 + ((i*29)%20)/100.0 *0.2); // Static alpha
         const angle = ( ((staff.id.charCodeAt(2)||0)*i*11) % (Math.PI*200) ) /100.0; // Static angle
         const radius = baseTipRadius * (0.5 + i*0.2);
         ctx.beginPath(); ctx.arc(tipX + Math.cos(angle)*radius*0.2, tipY + Math.sin(angle)*radius*0.2, radius, 0, Math.PI*2); ctx.fill();

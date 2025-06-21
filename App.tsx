@@ -324,9 +324,16 @@ const App: React.FC = () => {
     return purchasedPermanentSkillsState[skillId]?.level || 0;
   }, [purchasedPermanentSkillsState]);
   
-  const getPurchasableHats = useCallback((): HatItem[] => {
-    return ALL_HATS_SHOP.filter(hat => isCosmeticPurchased(hat.id) && hat.effectDescription !== 'Visual apenas.');
+  // For shop screen to list hats that give gameplay effects and are purchasable
+  const getPurchasableHatsForShop = useCallback((): HatItem[] => {
+    return ALL_HATS_SHOP.filter(hat => hat.effectDescription !== 'Visual apenas.');
+  }, []);
+
+  // For cosmetic selection modal, to list all owned hats for visual selection
+  const getSelectableCosmeticHats = useCallback((): HatItem[] => {
+    return ALL_HATS_SHOP.filter(hat => isCosmeticPurchased(hat.id));
   }, [isCosmeticPurchased]);
+
 
   const getPurchasableStaffs = useCallback((): StaffItem[] => {
     return ALL_STAFFS_SHOP.filter(staff => isCosmeticPurchased(staff.id) && staff.effectDescription !== 'Dispara um projétil em linha reta.');
@@ -374,16 +381,17 @@ const App: React.FC = () => {
 
     drawPlayerCanvas(ctx, previewPlayer, 0); 
 
-    if (previewPlayer.selectedStaffId) {
-        const staffItem = ALL_STAFFS_SHOP.find(s => s.id === previewPlayer.selectedStaffId);
-        if (staffItem) {
-            drawStaffCanvas(ctx, staffItem, previewPlayer, 0, null, null, canvasWidthForPreview, canvasHeightForPreview);
-        }
-    }
     if (previewPlayer.selectedHatId) {
         const hatItem = ALL_HATS_SHOP.find(h => h.id === previewPlayer.selectedHatId);
         if (hatItem) {
             drawHatCanvas(ctx, hatItem, previewPlayer, 0);
+        }
+    }
+
+    if (previewPlayer.selectedStaffId) {
+        const staffItem = ALL_STAFFS_SHOP.find(s => s.id === previewPlayer.selectedStaffId);
+        if (staffItem) {
+            drawStaffCanvas(ctx, staffItem, previewPlayer, 0, null, null, canvasWidthForPreview, canvasHeightForPreview);
         }
     }
 
@@ -727,7 +735,7 @@ const App: React.FC = () => {
         }
 
     } else if (!killedEnemy.isSummonedByBoss) { 
-        const baseDropChance = 0.10;
+        const baseDropChance = 0.15;
         const totalDropChance = baseDropChance + (playerRef.current.coinDropBonus || 0);
         if (Math.random() < totalDropChance) { 
             setPlayerCoins(prevCoins => prevCoins + 1);
@@ -965,50 +973,75 @@ const App: React.FC = () => {
     return {...enemyToAffect};
   }, []);
 
-  const handleExplosion = useCallback((projectile: Projectile) => {
-    if (!projectile.isExplosive || !projectile.explosionRadius) return;
+  const handleExplosion = useCallback((projectile: Projectile, maxTargets?: number, damageFactorOverride?: number) => {
+    if (!projectile.explosionRadius) return;
+
     createParticleEffect(projectile.x + projectile.width/2, projectile.y + projectile.height/2, 50, '#FF8000', 50, 250 * 2.2, 0.7, 'explosion'); 
 
-    let explosionDamage = projectile.damage * 0.75;
+    const damageFactor = damageFactorOverride ?? 0.75; // Default factor if not provided
+    let explosionDamage = projectile.damage * damageFactor;
+
     if(playerRef.current.isAdmin && adminConfigRef.current.damageMultiplier){
         explosionDamage *= adminConfigRef.current.damageMultiplier;
     }
 
-    setEnemies(prevEnemies => prevEnemies.map(enemy => {
-        if (!enemy || enemy.hp <= 0) return null;
+    const explosionCenterX = projectile.x + projectile.width / 2;
+    const explosionCenterY = projectile.y + projectile.height / 2;
 
-        const dx = (enemy.x + enemy.width / 2) - (projectile.x + projectile.width / 2);
-        const dy = (enemy.y + enemy.height / 2) - (projectile.y + projectile.height / 2);
+    const enemiesInRadius: Enemy[] = [];
+    enemiesRef.current.forEach(enemy => {
+        if (!enemy || enemy.hp <= 0) return;
+        const dx = (enemy.x + enemy.width / 2) - explosionCenterX;
+        const dy = (enemy.y + enemy.height / 2) - explosionCenterY;
         const distanceSq = dx * dx + dy * dy;
-
         if (distanceSq < projectile.explosionRadius! * projectile.explosionRadius!) {
-            let newHp = enemy.hp - explosionDamage;
-            let updatedFuryMode = enemy.inFuryMode;
-
-            const damageText: FloatingText = {
-                id: `expDmg-${performance.now()}-${enemy.id}`,
-                text: `${Math.round(explosionDamage)}`,
-                x: enemy.x + enemy.width / 2,
-                y: enemy.y,
-                vy: -77, life: 0.65, initialLife: 0.65, color: "#FF8C00", fontSize: 9, 
-            };
-            setFloatingTexts(prev => [...prev, damageText]);
-
-            if (enemy.enemyType === 'boss' && !enemy.inFuryMode && newHp <= enemy.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
-                updatedFuryMode = true;
-            }
-
-            if (playerRef.current.lifeSteal > 0) {
-                setPlayer(p => ({...p, hp: Math.min(p.maxHp, p.hp + explosionDamage * p.lifeSteal)}));
-            }
-
-            if (newHp <= 0) {
-                handleEnemyDeath(enemy);
-                return null;
-            }
-            return { ...enemy, hp: newHp, inFuryMode: updatedFuryMode };
+            enemiesInRadius.push({...enemy, distanceToExplosion: Math.sqrt(distanceSq)}); // Add distance for sorting
         }
-        return enemy;
+    });
+
+    enemiesInRadius.sort((a, b) => (a as any).distanceToExplosion - (b as any).distanceToExplosion);
+    const targetsToHit = maxTargets ? enemiesInRadius.slice(0, maxTargets) : enemiesInRadius;
+
+    const hitEnemyIds = new Set<string>();
+
+    targetsToHit.forEach(enemyToDamage => {
+        hitEnemyIds.add(enemyToDamage.id);
+    });
+
+    setEnemies(prevEnemies => prevEnemies.map(enemy => {
+        if (!enemy || enemy.hp <= 0 || !hitEnemyIds.has(enemy.id)) return enemy;
+
+        let newHp = enemy.hp - explosionDamage;
+        let updatedFuryMode = enemy.inFuryMode;
+
+        const damageText: FloatingText = {
+            id: `expDmg-${performance.now()}-${enemy.id}`,
+            text: `${Math.round(explosionDamage)}`,
+            x: enemy.x + enemy.width / 2,
+            y: enemy.y,
+            vy: -77, life: 0.65, initialLife: 0.65, color: "#FF8C00", fontSize: 9, 
+        };
+        setFloatingTexts(prev => [...prev, damageText]);
+
+        if (enemy.enemyType === 'boss' && !enemy.inFuryMode && newHp <= enemy.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
+            updatedFuryMode = true;
+             const furyText: FloatingText = {
+                id: `fury-${performance.now()}`, text: "CHEFE EM MODO FÚRIA!",
+                x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 - 100,
+                vy: 0, life: 3, initialLife: 3, color: "red", fontSize: 16,
+            };
+            setFloatingTexts(prevFt => [...prevFt, furyText]);
+        }
+
+        if (playerRef.current.lifeSteal > 0) {
+            setPlayer(p => ({...p, hp: Math.min(p.maxHp, p.hp + explosionDamage * p.lifeSteal)}));
+        }
+
+        if (newHp <= 0) {
+            handleEnemyDeath(enemy);
+            return null;
+        }
+        return { ...enemy, hp: newHp, inFuryMode: updatedFuryMode };
     }).filter(Boolean) as Enemy[]);
 
   }, [handleEnemyDeath, createParticleEffect, adminConfigRef]);
@@ -1016,14 +1049,15 @@ const App: React.FC = () => {
   const checkCollisions = useCallback(() => {
     setPlayerProjectiles(prevProj => prevProj.filter(proj => {
       let projectileNeedsDestroy = false;
-      let directHitOccurred = false;
+      let directHitOccurred = false; // To track if any direct hit happened with this projectile this frame
 
       proj.damagedEnemyIDs = proj.damagedEnemyIDs || [];
 
       setEnemies(prevEnemies => prevEnemies.map(enemy => {
         if (!enemy || enemy.hp <= 0) return null;
         
-        if ((projectileNeedsDestroy && !proj.isExplosive) || proj.damagedEnemyIDs!.includes(enemy.id)) {
+        // If projectile already marked for destruction (e.g. by explosion) and not pierceable further, or already damaged this enemy
+        if (projectileNeedsDestroy || proj.damagedEnemyIDs!.includes(enemy.id)) {
             return enemy;
         }
 
@@ -1058,11 +1092,11 @@ const App: React.FC = () => {
           let enemyAfterHit = { ...enemy };
           if (playerRef.current.appliesBurn && Math.random() < playerRef.current.appliesBurn.chance) {
              enemyAfterHit = applyBurnEffect(enemyAfterHit, playerRef.current);
-             showDamageNumber = false; // Don't show regular number if burn applied text will show
+             showDamageNumber = false; 
           }
           if (playerRef.current.appliesChill && Math.random() < playerRef.current.appliesChill.chance) {
              enemyAfterHit = applyChillEffect(enemyAfterHit, playerRef.current);
-             showDamageNumber = false; // Don't show regular number if chill applied text will show
+             showDamageNumber = false; 
           }
 
           if (showDamageNumber) {
@@ -1076,24 +1110,29 @@ const App: React.FC = () => {
             setFloatingTexts(prev => [...prev, damageText]);
           }
 
-
           createParticleEffect(
             proj.x + proj.width / 2,
             proj.y + proj.height / 2,
             6, proj.color, SPRITE_PIXEL_SIZE * 3, 90 * SPRITE_PIXEL_SIZE, 0.25, 'generic' 
           );
-
           
           let newHp = enemy.hp - damageDealt;
+          
+          // Handle on-hit explosion chance
+          if (proj.onHitExplosionConfig && proj.explosionRadius && Math.random() < proj.onHitExplosionConfig.chance) {
+            handleExplosion(proj, proj.onHitExplosionConfig.maxTargets, proj.onHitExplosionConfig.damageFactor);
+            proj.hitsLeft = 0; // Explosion consumes the projectile, overrides pierce
+          }
           
           if (proj.hitsLeft !== undefined && proj.hitsLeft > 0) {
               proj.hitsLeft--; 
               if (proj.hitsLeft <= 0) { 
                   projectileNeedsDestroy = true;
               }
-          } else { 
+          } else if (proj.hitsLeft === undefined) { // No pierce capability, destroy on first hit
               projectileNeedsDestroy = true;
           }
+
 
           if (newHp <= 0) {
             handleEnemyDeath({...enemyAfterHit, hp: 0});
@@ -1120,9 +1159,8 @@ const App: React.FC = () => {
         return enemy;
       }).filter(Boolean) as Enemy[]);
 
-      if (directHitOccurred && proj.isExplosive && projectileNeedsDestroy) {
-          handleExplosion(proj);
-      }
+      // Note: The logic for `proj.isExplosive` (for off-screen explosions) is handled in `updateProjectiles`.
+      // Here, we are concerned with direct hits and on-hit effects.
       
       return !projectileNeedsDestroy; 
     }));
@@ -1590,6 +1628,13 @@ const App: React.FC = () => {
 
         drawPlayerCanvas(ctx, currentPlayer, gameTime); 
 
+        if (currentPlayer.selectedHatId) {
+            const hatItem = ALL_HATS_SHOP.find(h => h.id === currentPlayer.selectedHatId);
+            if (hatItem) {
+                drawHatCanvas(ctx, hatItem, currentPlayer, gameTime); 
+            }
+        }
+        
         if (currentPlayer.selectedStaffId) {
             const staffItem = ALL_STAFFS_SHOP.find(s => s.id === currentPlayer.selectedStaffId);
             if (staffItem) {
@@ -1606,12 +1651,6 @@ const App: React.FC = () => {
             }
         }
 
-        if (currentPlayer.selectedHatId) {
-            const hatItem = ALL_HATS_SHOP.find(h => h.id === currentPlayer.selectedHatId);
-            if (hatItem) {
-                drawHatCanvas(ctx, hatItem, currentPlayer, gameTime); 
-            }
-        }
         ctx.restore(); // Restore alpha after player, hat, staff
 
         if (currentPlayer.shieldMaxHp && currentPlayer.shieldCurrentHp && currentPlayer.shieldCurrentHp > 0) {
@@ -2329,12 +2368,13 @@ const App: React.FC = () => {
         return;
     }
     setNicknameError("");
-    const currentUnlockedHats = getPurchasableHats();
-    const currentUnlockedStaffs = getPurchasableStaffs();
+    const currentSelectableHats = getSelectableCosmeticHats();
 
-    if (!selectedHatIdForSelectionScreen || !currentUnlockedHats.find(h => h.id === selectedHatIdForSelectionScreen)) {
-        setSelectedHatIdForSelectionScreen(currentUnlockedHats[0]?.id || DEFAULT_HAT_ID);
+    if (!selectedHatIdForSelectionScreen || !currentSelectableHats.find(h => h.id === selectedHatIdForSelectionScreen)) {
+        setSelectedHatIdForSelectionScreen(currentSelectableHats[0]?.id || DEFAULT_HAT_ID);
     }
+    
+    const currentUnlockedStaffs = getPurchasableStaffs(); // Assuming this list is fine for staff
     if (!selectedStaffIdForSelectionScreen || !currentUnlockedStaffs.find(s => s.id === selectedStaffIdForSelectionScreen)) {
         setSelectedStaffIdForSelectionScreen(currentUnlockedStaffs[0]?.id || DEFAULT_STAFF_ID);
     }
@@ -2529,7 +2569,7 @@ const App: React.FC = () => {
                 <div className="w-full max-w-4xl">
                     <h3 className="text-xl font-semibold text-cyan-300 mb-2 text-center">Chapéus Galácticos</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3 p-2 bg-gray-900 border border-cyan-700 rounded-md shadow-[0_0_10px_theme(colors.cyan.700)]">
-                        {ALL_HATS_SHOP.filter(item => item.effectDescription !== 'Visual apenas.').sort((a,b) => a.price - b.price).map(hat => (
+                        {ALL_HATS_SHOP.sort((a,b) => a.price - b.price).map(hat => ( // Display all hats, not just gameplay effect ones
                             <div key={hat.id} className={`${shopItemCardClass}`}>
                                 <p className="font-semibold text-cyan-200 text-sm">{hat.name}</p>
                                 <p className="text-gray-400 text-xxs my-1 flex-grow">{hat.effectDescription || hat.description}</p>
@@ -2648,7 +2688,7 @@ const App: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-semibold text-cyan-400 mb-3 text-center">Chapéus Galácticos</h3>
                         <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto p-2 bg-gray-900 border border-cyan-600 rounded-md shadow-[0_0_10px_theme(colors.cyan.600)]">
-                            {getPurchasableHats().map(hat => (
+                            {getSelectableCosmeticHats().map(hat => (
                                 <button
                                     key={hat.id}
                                     onClick={() => {

@@ -168,6 +168,8 @@ export interface Enemy extends GameObject {
   showMinionWarningTimer?: number; // Timer for "Spawning in X..." message
   showMinionSpawnedMessageTimer?: number; // Timer for "Minions spawned!" message
   isSummonedByBoss?: boolean; // Flag for minions to identify them
+
+  distanceToExplosion?: number; // Used temporarily in explosion logic
 }
 
 export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment'; // Added new space themed types
@@ -178,17 +180,23 @@ export interface Projectile extends GameObject {
   color: string; // Base color of the projectile
   glowEffectColor?: string; // Optional glow color if the base color is dark
   hitsLeft?: number; // For piercing, includes initial hit. 0 means destroyed.
-  isExploded?: boolean;
+  // isExploded?: boolean; // Deprecated, explosion handled differently
   // Homing properties
   isHoming?: boolean;
   homingTargetId?: string | null;
   homingStrength?: number; // Factor determining turn rate
   initialVx?: number; // Store initial velocity for some homing calcs
   initialVy?: number;
-  // Boomstaff properties
-  isExplosive?: boolean;
-  explosionRadius?: number;
-  // Rainbow Staff may need this
+  
+  // Properties for explosions
+  isExplosive?: boolean; // True if it explodes at end-of-life / off-screen.
+  explosionRadius?: number; // Radius for any type of explosion this projectile might cause.
+  onHitExplosionConfig?: { // Configuration for explosion specifically on enemy hit.
+    chance: number;        // Probability (0-1) of exploding on hit.
+    maxTargets: number;    // Maximum number of enemies affected by the on-hit explosion.
+    damageFactor: number;  // Multiplier of projectile's base damage for the explosion.
+  };
+
   appliedEffectType: ProjectileEffectType; // Made mandatory
   trailSpawnTimer?: number; // Timer for spawning trail particles
   damagedEnemyIDs?: string[]; // Tracks IDs of enemies already damaged by this projectile

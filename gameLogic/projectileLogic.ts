@@ -66,12 +66,16 @@ export function createPlayerProjectiles(
   let finalDamage = projectileBasePlayerDamage;
   let finalIsHoming = isHomingFromUpgrades;
   let finalHomingStrength = homingStrengthFromUpgrades;
-  let finalIsExplosive = false;
-  let finalExplosionRadius = 0;
   
   let staffEffectForShot: ProjectileEffectType = 'standard';
   let shootSound = '/assets/sounds/player_shoot_magic_01.wav';
   let shootVolume = 0.5;
+
+  // Properties to be set on the projectile object later
+  let projectileIsExplosiveForOffScreen = false; // Default: does not explode off-screen
+  let projectileExplosionRadius: number | undefined = undefined;
+  let projectileOnHitExplosionConfig: Projectile['onHitExplosionConfig'] = undefined;
+
 
   const activeStaffId = player.selectedStaffId;
   const currentStaffItem = ALL_STAFFS_SHOP.find(s => s.id === activeStaffId) || ALL_STAFFS_SHOP[0];
@@ -113,8 +117,9 @@ export function createPlayerProjectiles(
       shootVolume = 0.45;
       break;
     case 'boomstaff':
-      finalIsExplosive = true;
-      finalExplosionRadius = 60 * SPRITE_PIXEL_SIZE;
+      projectileExplosionRadius = 60 * SPRITE_PIXEL_SIZE;
+      projectileOnHitExplosionConfig = { chance: 0.3, maxTargets: 4, damageFactor: 0.75 };
+      projectileIsExplosiveForOffScreen = false; // Does NOT explode off-screen
       shootSound = '/assets/sounds/projectile_fire_shoot_01.wav';
       shootVolume = 0.6;
       break;
@@ -139,7 +144,7 @@ export function createPlayerProjectiles(
   }
   playSound(shootSound, shootVolume);
 
-  const createActualProjectile = (angle: number, individualProjectileEffectType: ProjectileEffectType, currentDamage: number, currentPierce: number, currentIsHoming: boolean, currentHomingStrength: number, currentIsExplosive: boolean, currentExplosionRadius: number, color: string, glowColor?: string): Projectile => {
+  const createActualProjectile = (angle: number, individualProjectileEffectType: ProjectileEffectType, currentDamage: number, currentPierce: number, currentIsHoming: boolean, currentHomingStrength: number, color: string, glowColor?: string): Projectile => {
     return {
         x: projectileSpawnX - projectileWidth / 2,
         y: projectileSpawnY - projectileHeight / 2,
@@ -157,8 +162,9 @@ export function createPlayerProjectiles(
         homingStrength: currentHomingStrength,
         initialVx: Math.cos(angle) * speed,
         initialVy: Math.sin(angle) * speed,
-        isExplosive: currentIsExplosive,
-        explosionRadius: currentExplosionRadius,
+        isExplosive: projectileIsExplosiveForOffScreen, // For off-screen/end-of-life
+        explosionRadius: projectileExplosionRadius,     // General radius
+        onHitExplosionConfig: projectileOnHitExplosionConfig, // For on-hit chance
         appliedEffectType: individualProjectileEffectType,
         damagedEnemyIDs: [],
         draw: () => {},
@@ -168,14 +174,14 @@ export function createPlayerProjectiles(
 
   if (staffEffectForShot === 'trident') {
     const tridentDamage = finalDamage * 0.6; 
-    newProjectiles.push(createActualProjectile(baseAngle, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, false, 0, finalProjectileColor, finalGlowEffectColor));
-    newProjectiles.push(createActualProjectile(baseAngle - TRIDENT_SPREAD_ANGLE, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, false, 0, finalProjectileColor, finalGlowEffectColor));
-    newProjectiles.push(createActualProjectile(baseAngle + TRIDENT_SPREAD_ANGLE, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, false, 0, finalProjectileColor, finalGlowEffectColor));
+    newProjectiles.push(createActualProjectile(baseAngle, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
+    newProjectiles.push(createActualProjectile(baseAngle - TRIDENT_SPREAD_ANGLE, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
+    newProjectiles.push(createActualProjectile(baseAngle + TRIDENT_SPREAD_ANGLE, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
   } else if (staffEffectForShot === 'thunder_staff') {
-    newProjectiles.push(createActualProjectile(baseAngle, 'standard', finalDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalIsExplosive, finalExplosionRadius, finalProjectileColor, finalGlowEffectColor));
+    newProjectiles.push(createActualProjectile(baseAngle, 'standard', finalDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
     newLightningBoltsTrigger = { mouseX: internalTargetMouseX, mouseY: internalTargetMouseY };
   } else {
-    newProjectiles.push(createActualProjectile(baseAngle, staffEffectForShot, finalDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalIsExplosive, finalExplosionRadius, finalProjectileColor, finalGlowEffectColor));
+    newProjectiles.push(createActualProjectile(baseAngle, staffEffectForShot, finalDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
   }
 
   return { projectiles: newProjectiles, newLightningBoltsTrigger };
@@ -188,7 +194,7 @@ export function updateProjectiles(
   isPlayerProjectileList: boolean,
   enemies: Readonly<Enemy[]>,
   createParticleEffectFn: (x: number, y: number, count: number, color: string, sizeVariance?: number, speed?: number, life?: number) => void,
-  handleExplosionFn: (projectile: Projectile) => void,
+  handleExplosionFn: (projectile: Projectile, maxTargets?: number, damageFactorOverride?: number) => void,
   canvasWidth: number,
   canvasHeight: number
 ): Projectile[] {
@@ -272,8 +278,10 @@ export function updateProjectiles(
     const isOnScreen = p.x > -p.width && p.x < canvasWidth && p.y > -p.height && p.y < canvasHeight;
     
     if (!isOnScreen) { 
-        if (p.owner === 'player' && p.isExplosive) {
-            handleExplosionFn(p); 
+        // Handles projectiles that explode at end-of-life/off-screen (e.g., from Fragmentation upgrade if they were made explosive)
+        // Supernova staff projectiles will have `isExplosive: false`, so they won't trigger this.
+        if (p.owner === 'player' && p.isExplosive && p.explosionRadius) {
+            handleExplosionFn(p); // Uses default all targets and damage factor for off-screen explosions
         }
         return false; 
     }
