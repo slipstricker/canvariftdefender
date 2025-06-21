@@ -25,11 +25,11 @@ function _createStandardMinionForBoss(
     playSound: (soundName: string, volume?: number) => void
 ): Enemy {
   const waveMultiplier = 1 + (currentWave - 1) * 0.10; 
-  const baseHp = 10 * waveMultiplier;
+  const baseHp = 5 * waveMultiplier;
   const hpPerPlayerLevel = 1.5 * waveMultiplier;
-  const baseDamage = 3 * waveMultiplier;
-  const damagePerPlayerLevel = 0.3 * waveMultiplier;
-  const baseExp = 5 * waveMultiplier; 
+  const baseDamage = 2 * waveMultiplier;
+  const damagePerPlayerLevel = 0.2 * waveMultiplier;
+  const baseExp = 3 * waveMultiplier; 
   const expPerPlayerLevel = 0.5 * waveMultiplier;
   const initialBaseSpeed = 65; 
   const speedBonusPerWaveFactor = 0.06;
@@ -44,7 +44,8 @@ function _createStandardMinionForBoss(
   const enemyDamage = baseDamage + playerLevel * damagePerPlayerLevel;
   const enemySpeed = (currentBaseSpeed + Math.random() * 15); 
   const enemyExp = Math.floor(baseExp + playerLevel * expPerPlayerLevel);
-  const shootCooldownBase = Math.max(400, 2000 - currentWave * 40);
+  let shootCooldownBase = Math.max(400, 2000 - currentWave * 40);
+  shootCooldownBase *= 1.00; // Reduce attack speed by 10%
 
   const spawnOffsetX = (Math.random() - 0.5) * bossWidth * 1.5;
   const spawnOffsetY = (Math.random() * 50 + 20); 
@@ -128,6 +129,7 @@ function createBossEnemy(
     currentMoveSpeed = Math.min(currentMoveSpeed, wave5BossActualMoveSpeed * 2.0); 
     currentExpValue = Math.floor(wave5BossActualExp * Math.pow(2, scalingSteps));
   }
+  currentShootCooldown *= 1.10; // Reduce attack speed by 10%
   playSound('/assets/sounds/enemy_spawn_alien_01.wav', 0.8);
 
   return {
@@ -223,6 +225,7 @@ export function createEnemyOrBoss(
     enemyColor = visualVariant === 'cyclops' ? `hsl(200, 70%, 60%)` : `hsl(120, 60%, 45%)`; 
     shootCooldownBase /= 0.9; 
   }
+  shootCooldownBase *= 1.10; // Reduce attack speed by 10%
   playSound('/assets/sounds/enemy_spawn_alien_01.wav', 0.6);
 
   const newEnemy: Enemy = {
@@ -283,6 +286,7 @@ export function createMiniSplitterEnemy(
   const miniExp = Math.floor((baseExp + playerLevel * expPerPlayerLevel) * 0.3);
   let miniShootCooldown = Math.max(250, (1800 - currentWave * 50) * 0.8);
   miniShootCooldown /= 0.9; 
+  miniShootCooldown *= 1.10; // Reduce attack speed by 10%
   // Sound played in App.tsx after all minis are created for the batch
 
   return {

@@ -107,6 +107,26 @@
         ::-webkit-scrollbar-corner {
             background: #0A0F1A;
         }
+
+        /* LED Pulsate Animation for Individual Spinning Upgrade Card */
+        @keyframes card-spin-led-pulsate {
+          0% { 
+            box-shadow: 0 0 6px rgba(0, 220, 255, 0.5), inset 0 0 4px rgba(0, 180, 220, 0.3); 
+            border-color: rgba(0, 220, 255, 0.6); 
+          }
+          50% { 
+            box-shadow: 0 0 18px rgba(0, 255, 255, 1), inset 0 0 10px rgba(0, 220, 255, 0.7); 
+            border-color: rgba(0, 255, 255, 1); 
+          }
+          100% { 
+            box-shadow: 0 0 6px rgba(0, 220, 255, 0.5), inset 0 0 4px rgba(0, 180, 220, 0.3); 
+            border-color: rgba(0, 220, 255, 0.6); 
+          }
+        }
+        .upgrade-card-spinning-led { /* Applied to the UpgradeCard button */
+          animation: card-spin-led-pulsate 1.0s infinite ease-in-out;
+          border-width: 2px; /* Ensure border is visible for the effect */
+        }
     </style>
 <script type="importmap">
 {
@@ -117,6 +137,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>

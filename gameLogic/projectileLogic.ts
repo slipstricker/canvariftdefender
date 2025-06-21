@@ -1,4 +1,5 @@
 
+
 import { Player, MouseState, Projectile, ProjectileEffectType, Enemy, StaffItem } from '../types';
 import {
   PLAYER_PROJECTILE_COLOR, CANVAS_WIDTH, CANVAS_HEIGHT, PROJECTILE_ART_WIDTH,
@@ -57,13 +58,13 @@ export function createPlayerProjectiles(
   const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE;
   const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE;
 
-  let projectileBasePlayerDamage = player.projectileDamage;
+  const playerAverageBaseDamage = (player.minProjectileDamage + player.maxProjectileDamage) / 2;
   let isHomingFromUpgrades = player.projectilesAreHoming || false;
   let homingStrengthFromUpgrades = player.projectileHomingStrength || 0;
   
   let finalPierceCount = player.projectilePierceCount || 0;
 
-  let finalDamage = projectileBasePlayerDamage;
+  let finalDamage = playerAverageBaseDamage; // Start with average damage
   let finalIsHoming = isHomingFromUpgrades;
   let finalHomingStrength = homingStrengthFromUpgrades;
   
@@ -89,7 +90,6 @@ export function createPlayerProjectiles(
   else if (activeStaffId === 'staff_frozen_tip') staffEffectForShot = 'frozen_tip';
   else if (activeStaffId === 'staff_rainbow') {
     staffEffectForShot = RAINBOW_STAFF_EFFECT_TYPES[Math.floor(Math.random() * RAINBOW_STAFF_EFFECT_TYPES.length)];
-    // For rainbow, derive color from the chosen effect's staff
     const effectStaff = ALL_STAFFS_SHOP.find(s => 
         (s.id === 'staff_trident' && staffEffectForShot === 'trident') ||
         (s.id === 'staff_boom' && staffEffectForShot === 'boomstaff') ||
@@ -112,14 +112,15 @@ export function createPlayerProjectiles(
         finalIsHoming = true;
         finalHomingStrength = 0.1;
       }
-      finalDamage = player.baseProjectileDamage * 0.5;
+      // Use player's base average damage for this calculation
+      finalDamage = ((player.baseMinProjectileDamage + player.baseMaxProjectileDamage) / 2) * 0.5;
       shootSound = '/assets/sounds/player_shoot_magic_01.wav';
       shootVolume = 0.45;
       break;
     case 'boomstaff':
       projectileExplosionRadius = 60 * SPRITE_PIXEL_SIZE;
       projectileOnHitExplosionConfig = { chance: 0.3, maxTargets: 4, damageFactor: 0.75 };
-      projectileIsExplosiveForOffScreen = false; // Does NOT explode off-screen
+      projectileIsExplosiveForOffScreen = false; 
       shootSound = '/assets/sounds/projectile_fire_shoot_01.wav';
       shootVolume = 0.6;
       break;
@@ -140,7 +141,6 @@ export function createPlayerProjectiles(
       shootSound = '/assets/sounds/player_shoot_magic_01.wav'; 
       shootVolume = 0.5;
       break;
-    // default case uses the finalProjectileColor already set from currentStaffItem
   }
   playSound(shootSound, shootVolume);
 
@@ -152,7 +152,7 @@ export function createPlayerProjectiles(
         height: projectileHeight,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        damage: currentDamage,
+        damage: currentDamage, // This is the (potentially staff-modified) average damage
         owner: 'player',
         color: color, 
         glowEffectColor: glowColor,
@@ -162,9 +162,9 @@ export function createPlayerProjectiles(
         homingStrength: currentHomingStrength,
         initialVx: Math.cos(angle) * speed,
         initialVy: Math.sin(angle) * speed,
-        isExplosive: projectileIsExplosiveForOffScreen, // For off-screen/end-of-life
-        explosionRadius: projectileExplosionRadius,     // General radius
-        onHitExplosionConfig: projectileOnHitExplosionConfig, // For on-hit chance
+        isExplosive: projectileIsExplosiveForOffScreen, 
+        explosionRadius: projectileExplosionRadius,     
+        onHitExplosionConfig: projectileOnHitExplosionConfig, 
         appliedEffectType: individualProjectileEffectType,
         damagedEnemyIDs: [],
         draw: () => {},
@@ -249,8 +249,7 @@ export function updateProjectiles(
     if (isPlayerProjectileList && p.trailSpawnTimer !== undefined) {
       p.trailSpawnTimer -= deltaTime;
       if (p.trailSpawnTimer <= 0) {
-          let trailColor = p.glowEffectColor || p.color; // Use glow color for trail if available
-          // For specific effects, can override again if needed, but glowEffectColor should handle dark cases
+          let trailColor = p.glowEffectColor || p.color; 
           if (p.appliedEffectType === 'frozen_tip') trailColor = p.glowEffectColor || '#AED6F1';
           else if (p.appliedEffectType === 'emerald_homing') trailColor = p.glowEffectColor ||'#2ECC71';
           
@@ -258,7 +257,7 @@ export function updateProjectiles(
               p.x + p.width / 2,
               p.y + p.height / 2,
               1, 
-              hexToRgba(trailColor, 0.4 + Math.random() * 0.3), // Apply alpha to the trail color
+              hexToRgba(trailColor, 0.4 + Math.random() * 0.3), 
               SPRITE_PIXEL_SIZE * 1.5, 
               15 * SPRITE_PIXEL_SIZE,  
               0.40 + Math.random() * 0.20 
@@ -278,10 +277,8 @@ export function updateProjectiles(
     const isOnScreen = p.x > -p.width && p.x < canvasWidth && p.y > -p.height && p.y < canvasHeight;
     
     if (!isOnScreen) { 
-        // Handles projectiles that explode at end-of-life/off-screen (e.g., from Fragmentation upgrade if they were made explosive)
-        // Supernova staff projectiles will have `isExplosive: false`, so they won't trigger this.
         if (p.owner === 'player' && p.isExplosive && p.explosionRadius) {
-            handleExplosionFn(p); // Uses default all targets and damage factor for off-screen explosions
+            handleExplosionFn(p); 
         }
         return false; 
     }

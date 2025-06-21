@@ -40,8 +40,10 @@ export interface Player extends GameObject {
   jumpHeight: number;
   baseAttackSpeed: number; // For effects
   attackSpeed: number; // projectiles per second
-  baseProjectileDamage: number; // For effects
-  projectileDamage: number;
+  baseMinProjectileDamage: number; 
+  baseMaxProjectileDamage: number; 
+  minProjectileDamage: number;
+  maxProjectileDamage: number;
   critChance: number; // 0-1
   critMultiplier: number;
   baseDefense: number; // For effects like Helmet
@@ -71,7 +73,7 @@ export interface Player extends GameObject {
   // Properties for applying burn status effect
   appliesBurn?: {
     chance: number;
-    damageFactor: number; // e.g., 0.2 means 20% of projectileDamage
+    damageFactor: number; // e.g., 0.2 means 20% of average projectileDamage
     duration: number;
     baseStacks: number; // Initial stacks applied
     maxStacks: number;
@@ -175,7 +177,7 @@ export interface Enemy extends GameObject {
 export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment'; // Added new space themed types
 
 export interface Projectile extends GameObject {
-  damage: number;
+  damage: number; // For player projectiles, this will be the average damage. Actual damage rolled on hit.
   owner: 'player' | 'enemy';
   color: string; // Base color of the projectile
   glowEffectColor?: string; // Optional glow color if the base color is dark

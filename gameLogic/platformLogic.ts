@@ -101,11 +101,11 @@ export function findNewPlatformPositionAndSize(
     let maxVerticalTopSeparationUp: number;
 
     if (isAnchoredToGround) {
-        minVerticalTopSeparationUp = PLAYER_HEIGHT * 1.1;
-        maxVerticalTopSeparationUp = PLAYER_HEIGHT * 1.3;
+        minVerticalTopSeparationUp = PLAYER_HEIGHT * 1.5;
+        maxVerticalTopSeparationUp = PLAYER_HEIGHT * 1.8;
     } else {
-        minVerticalTopSeparationUp = PLAYER_HEIGHT * 0.80;
-        maxVerticalTopSeparationUp = PLAYER_HEIGHT * 1.1;
+        minVerticalTopSeparationUp = PLAYER_HEIGHT * 1.3;
+        maxVerticalTopSeparationUp = PLAYER_HEIGHT * 1.5; 
     }
 
     // Horizontal edge gap constraints
@@ -113,8 +113,8 @@ export function findNewPlatformPositionAndSize(
     const maxHorizontalEdgeGap = PLAYER_WIDTH * 1.20;
 
     // Global Y limits for platform tops
-    const GLOBAL_MIN_Y_ALLOWED_FOR_PLATFORM_TOP = CANVAS_HEIGHT * 0.20; 
-    const GLOBAL_MAX_Y_ALLOWED_FOR_PLATFORM_TOP = CANVAS_HEIGHT - GROUND_PLATFORM_HEIGHT - DYNAMIC_PLATFORM_HEIGHT - (PLAYER_HEIGHT * 0.1);
+    const GLOBAL_MIN_Y_ALLOWED_FOR_PLATFORM_TOP = CANVAS_HEIGHT * 0.05; 
+    const GLOBAL_MAX_Y_ALLOWED_FOR_PLATFORM_TOP = CANVAS_HEIGHT - GROUND_PLATFORM_HEIGHT - DYNAMIC_PLATFORM_HEIGHT - (PLAYER_HEIGHT * 0.05);
 
     for (let attempt = 0; attempt < PLATFORM_SAFE_SPAWN_ATTEMPTS; attempt++) {
         // Vertical Placement: Always upwards from anchor's top

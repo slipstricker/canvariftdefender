@@ -1,7 +1,7 @@
 
 
 import { Upgrade, Player, Enemy } from '../types';
-import { PLAYER_INITIAL_ATTACK_SPEED, PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_CRIT_CHANCE } from '../constants';
+import { PLAYER_INITIAL_ATTACK_SPEED, PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_CRIT_CHANCE, PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE, PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE } from '../constants';
 import { ALL_STAFFS_SHOP, DEFAULT_STAFF_ID } from './shopLogic';
 
 export const UPGRADES: Upgrade[] = [
@@ -10,7 +10,10 @@ export const UPGRADES: Upgrade[] = [
     name: 'Catalisador',
     description: 'Dano do Projétil +5. Acumula infinitamente.',
     tier: 'comum',
-    apply: (player) => { player.projectileDamage += 5; },
+    apply: (player) => { 
+      player.minProjectileDamage += 5; 
+      player.maxProjectileDamage += 5;
+    },
   },
   {
     id: 'growth',
@@ -142,21 +145,22 @@ export const UPGRADES: Upgrade[] = [
         if (!game.addEnemyProjectile) return;
 
         const currentStaff = ALL_STAFFS_SHOP.find(s => s.id === player.selectedStaffId) || ALL_STAFFS_SHOP.find(s => s.id === DEFAULT_STAFF_ID);
-        const projectileColor = currentStaff?.projectileColor || '#FFA500'; // Default to orange if somehow not found
+        const projectileColor = currentStaff?.projectileColor || '#FFA500'; 
         const projectileGlowColor = currentStaff?.projectileGlowColor;
+        const fragmentationDamage = Math.max(1, ((player.minProjectileDamage + player.maxProjectileDamage) / 2) / 3);
 
         for(let i = 0; i < 2; i++) {
           const angle = Math.random() * Math.PI * 2;
-          const speed = 350; // Slightly faster than before
+          const speed = 350; 
           game.addEnemyProjectile(
             enemy.x + enemy.width / 2, 
             enemy.y + enemy.height / 2, 
             Math.cos(angle) * speed, 
             Math.sin(angle) * speed, 
-            Math.max(1, player.projectileDamage / 3), // Damage slightly buffed
-            'player', // Owner is player
-            projectileColor, // Player's projectile color
-            projectileGlowColor // Player's projectile glow color
+            fragmentationDamage,
+            'player', 
+            projectileColor, 
+            projectileGlowColor 
           );
         }
       };

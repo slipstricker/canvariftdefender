@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig, DisplayedSkillInfo, FloatingText, AppliedStatusEffect, EnemyType, CosmeticUnlocksData, HatItem, StaffItem, CosmeticItem, ProjectileEffectType, EnemyUpdateResult, AlienVisualVariant, Star, Nebula, ParticleType, LeveledSkill } from './types';
 import {
@@ -7,7 +6,7 @@ import {
   XP_PER_LEVEL_BASE, XP_LEVEL_MULTIPLIER, GRAVITY,
   INITIAL_WAVE_CONFIG, WAVE_CONFIG_INCREMENTS, PLAYER_INTERMISSION_HEAL_PERCENT,
   GROUND_PLATFORM_HEIGHT, DYNAMIC_PLATFORM_HEIGHT, DEFAULT_PLATFORM_PADDING,
-  PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE, PLAYER_INITIAL_PROJECTILE_DAMAGE, PLAYER_INITIAL_DEFENSE,
+  PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE, PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE, PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE, PLAYER_INITIAL_DEFENSE,
   SKILL_DASH_DURATION, SKILL_DASH_SPEED, SKILL_DASH_INVINCIBILITY_DURATION,
   ADMIN_START_WAVE,
   BOSS_WAVE_NUMBER, BOSS_FURY_MODE_HP_THRESHOLD, BOSS_FURY_DAMAGE_MULTIPLIER, ALL_BOSS_WAVES,
@@ -37,7 +36,7 @@ import {
     drawMultiTentacleAlienCanvas, drawThreeEyedBossAlienCanvas,
     drawGroundPlatformCanvas, drawDynamicPlatformCanvas
 } from './gameLogic/canvasArt';
-import UpgradeCard from './components/UpgradeCard';
+import UpgradeSelectionScreen from './components/UpgradeSelectionScreen'; // Import the new component
 import SkillsInfoScreen from './components/SkillsInfoScreen';
 import { fetchLeaderboard, submitScore } from './onlineLeaderboardService';
 import { 
@@ -46,12 +45,12 @@ import {
 
 type WaveStatus = 'intermissao' | 'surgindo' | 'lutando';
 
-const UPGRADE_ICONS: Record<string, string> = {
+export const UPGRADE_ICONS: Record<string, string> = {
   catalyst: "🔥", growth: "❤️", resonance: "⚡", swift: "👟", renew: "✚", leech: "🩸",
   fragmentation: "💥", thunderbolt: "🌩️", appraisal: "📜", immortal: "😇", eyesight: "👁️",
   scorchedRounds: "♨️", cryoRounds: "❄️", piercingRounds: "🎯", seekerRounds: "🛰️", energyShield: "🛡️",
 };
-// SKILL_ICONS are now part of LeveledSkill in shopLogic.ts
+
 
 const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: string | null = null, selectedStaffId: string | null = null): Player => ({
   nickname: nickname,
@@ -71,8 +70,10 @@ const getDefaultPlayerState = (nickname: string = "Jogador", selectedHatId: stri
   jumpHeight: 820,
   baseAttackSpeed: PLAYER_INITIAL_ATTACK_SPEED,
   attackSpeed: PLAYER_INITIAL_ATTACK_SPEED,
-  baseProjectileDamage: PLAYER_INITIAL_PROJECTILE_DAMAGE,
-  projectileDamage: PLAYER_INITIAL_PROJECTILE_DAMAGE,
+  baseMinProjectileDamage: PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE,
+  baseMaxProjectileDamage: PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE,
+  minProjectileDamage: PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE,
+  maxProjectileDamage: PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE,
   critChance: PLAYER_INITIAL_CRIT_CHANCE,
   critMultiplier: 1.5,
   baseDefense: PLAYER_INITIAL_DEFENSE,
@@ -146,6 +147,41 @@ const WAVE_ANNOUNCEMENT_DURATION = 5;
 const BOSS_SUMMON_WARNING_UPDATE_INTERVAL = 1; 
 const INTERMISSION_COUNTDOWN_UPDATE_INTERVAL = 1.1; 
 
+// Helper function to get damage color
+function getDamageColor(currentDamage: number, minDamage: number, maxDamage: number): string {
+  if (maxDamage <= minDamage) {
+    return '#FFFFFF'; // White if range is invalid or single point
+  }
+  // Clamp currentDamage to be within min/max for normalization to avoid issues
+  const clampedDamage = Math.max(minDamage, Math.min(currentDamage, maxDamage));
+
+  if (clampedDamage <= minDamage) return '#FFFFFF'; // White for min
+  if (clampedDamage >= maxDamage) return '#FF0000'; // Red for max
+
+  const normalized = (clampedDamage - minDamage) / (maxDamage - minDamage);
+
+  let r: number, g: number, b: number;
+  // White (255,255,255) -> Yellow (255,255,0) -> Orange (255,165,0) -> Red (255,0,0)
+  if (normalized < 0.333) { // White to Yellow
+    const stageNormalized = normalized / 0.333;
+    r = 255;
+    g = 255;
+    b = Math.floor(255 - 255 * stageNormalized);
+  } else if (normalized < 0.666) { // Yellow to Orange
+    const stageNormalized = (normalized - 0.333) / 0.333;
+    r = 255;
+    g = Math.floor(255 - (255 - 165) * stageNormalized);
+    b = 0;
+  } else { // Orange to Red
+    const stageNormalized = (normalized - 0.666) / 0.334;
+    r = 255;
+    g = Math.floor(165 - 165 * stageNormalized);
+    b = 0;
+  }
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -187,8 +223,11 @@ const App: React.FC = () => {
     repositionAndResizeAllDynamicPlatforms(InitialStaticPlatforms.map(p => ({...p})))
   );
   const [availableUpgrades, setAvailableUpgrades] = useState<Upgrade[]>(InitialUpgrades);
-  const [currentUpgradeChoices, setCurrentUpgradeChoices] = useState<Upgrade[]>([]);
-  const [canPickMultipleUpgrades, setCanPickMultipleUpgrades] = useState(0);
+  
+  // State for UpgradeSelectionScreen
+  const [currentOfferedUpgradesForSelection, setCurrentOfferedUpgradesForSelection] = useState<Upgrade[]>([]);
+  const [currentPicksAllowedForSelection, setCurrentPicksAllowedForSelection] = useState<number>(0);
+
 
   const [gameTime, setGameTime] = useState(0); 
 
@@ -203,7 +242,6 @@ const App: React.FC = () => {
 
   const [stars, setStars] = useState<Star[]>([]);
   const [nebulae, setNebulae] = useState<Nebula[]>([]);
-
 
   const keysRef = useRef<Keys>({ a: false, d: false, space: false, shift: false });
   const mouseStateRef = useRef<MouseState>({ x: 0, y: 0, isDown: false });
@@ -573,14 +611,13 @@ const App: React.FC = () => {
         y: y - projectileHeight / 2,
         width: projectileWidth,
         height: projectileHeight,
-        vx, vy, damage,
+        vx, vy, damage, // This damage will be an average for player-owned fragmentation
         owner, 
         color,
         glowEffectColor: glowColor,
-        appliedEffectType: 'standard', // Fragmentation projectiles are standard type by default
+        appliedEffectType: 'standard', 
         damagedEnemyIDs: [],
         draw: () => {},
-        // For player-owned fragmentation, add pierce and homing if player has them
         hitsLeft: owner === 'player' ? 1 + (playerRef.current.projectilePierceCount || 0) : 1,
         isHoming: owner === 'player' ? playerRef.current.projectilesAreHoming : false,
         homingStrength: owner === 'player' ? playerRef.current.projectileHomingStrength : undefined,
@@ -645,48 +682,41 @@ const App: React.FC = () => {
     }
     setParticles(prev => [...prev, ...newParticles]);
   }, []);
-
+  
   const handleLevelUp = useCallback(() => {
     setGameState(GameState.ChoosingUpgrade);
-    // Reset key states to prevent sticky movement/actions
-    keysRef.current.a = false;
-    keysRef.current.d = false;
-    keysRef.current.space = false;
-    keysRef.current.shift = false;
-    mouseStateRef.current.isDown = false; // Also reset mouse down state
-
+    keysRef.current.a = false; keysRef.current.d = false; keysRef.current.space = false; keysRef.current.shift = false;
+    mouseStateRef.current.isDown = false;
     setPlayer(p => ({...p, usedFreeRerollThisLevelUp: false}));
 
-    const currentAppraisalChoices = playerRef.current.appraisalChoices;
-    let actualChoicesToOffer = currentAppraisalChoices;
-    setCanPickMultipleUpgrades(1);
-
-    if (playerRef.current.selectedHatId === 'hat_challenger' && Math.random() < 0.2) {
-        setCanPickMultipleUpgrades(2);
-        actualChoicesToOffer = Math.max(currentAppraisalChoices, 4);
+    let numChoicesToOffer = playerRef.current.appraisalChoices;
+    let picksAllowed = 1;
+    if (playerRef.current.selectedHatId === 'hat_challenger' && Math.random() < 0.2) { // Example hat effect
+        picksAllowed = 2;
+        numChoicesToOffer = Math.max(numChoicesToOffer, 4); 
     }
+    setCurrentPicksAllowedForSelection(picksAllowed);
 
-    const chosenUpgrades: Upgrade[] = [];
-    let filteredAvailable = availableUpgrades.filter(u => {
+    const finalChosenUpgrades: Upgrade[] = [];
+    let filteredAvailableForSelection = availableUpgrades.filter(u => {
         const timesApplied = playerRef.current.upgrades.filter(uid => uid === u.id).length;
         return !u.maxApplications || timesApplied < u.maxApplications;
     });
-
-    if (playerRef.current.selectedHatId === 'hat_uncommon') {
-        const uncommonAndRare = filteredAvailable.filter(u => u.tier === 'incomum' || u.tier === 'raro');
-        if (uncommonAndRare.length > 0) {
-            filteredAvailable = uncommonAndRare;
-        } // If no uncommon/rare, fallback to common
+    
+    if (playerRef.current.selectedHatId === 'hat_uncommon') { // Example hat effect
+        const uncommonAndRare = filteredAvailableForSelection.filter(u => u.tier === 'incomum' || u.tier === 'raro');
+        if (uncommonAndRare.length > 0) filteredAvailableForSelection = uncommonAndRare;
     }
 
-
-    for (let i = 0; i < actualChoicesToOffer && filteredAvailable.length > 0; i++) {
-      const randomIndex = Math.floor(Math.random() * filteredAvailable.length);
-      chosenUpgrades.push(filteredAvailable[randomIndex]);
-      filteredAvailable.splice(randomIndex, 1);
+    for (let i = 0; i < numChoicesToOffer && filteredAvailableForSelection.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * filteredAvailableForSelection.length);
+      finalChosenUpgrades.push(filteredAvailableForSelection[randomIndex]);
+      filteredAvailableForSelection.splice(randomIndex, 1); 
     }
-    setCurrentUpgradeChoices(chosenUpgrades);
+    setCurrentOfferedUpgradesForSelection(finalChosenUpgrades);
+
   }, [availableUpgrades]);
+
 
   const handleEnemyDeath = useCallback((killedEnemy: Enemy) => {
     const randomHue = Math.random() * 360;
@@ -752,7 +782,7 @@ const App: React.FC = () => {
                 y: killedEnemy.y - 10,
                 vy: -80, life: 1, initialLife: 1, color: "#FFD700", fontSize: 10,
             };
-            setFloatingTexts(prevFt => [...prevFt, coinText]);
+            setFloatingTexts(prev => [...prev, coinText]);
             createParticleEffect(killedEnemy.x + killedEnemy.width / 2, killedEnemy.y + killedEnemy.height / 2, 5, '#FFD700', 10, 100, 0.7, 'coin_pickup');
         }
     }
@@ -804,7 +834,7 @@ const App: React.FC = () => {
 
         thunderboltIntervalRef.current = setInterval(() => {
             triggerThunderboltStrikes(playerRef.current.thunderboltEffectiveBolts || 0, undefined, undefined);
-        }, interval) as unknown as number;
+        }, interval);
     } else if (targetX !== undefined && targetY !== undefined) {
         triggerThunderboltStrikes(1, targetX, targetY);
     }
@@ -825,7 +855,9 @@ const App: React.FC = () => {
         let strikeYEnd = fixedTargetY !== undefined ? fixedTargetY : CANVAS_HEIGHT;
 
         const boltLifetime = 0.45; 
-        let boltDamage = 30 + currentPlayer.level * 5 + currentPlayer.projectileDamage * 0.5;
+        const avgPlayerDamage = (currentPlayer.minProjectileDamage + currentPlayer.maxProjectileDamage) / 2;
+        let boltDamage = 30 + currentPlayer.level * 5 + avgPlayerDamage * 0.5;
+
         if (currentPlayer.isAdmin && adminConfigRef.current.damageMultiplier) {
             boltDamage *= adminConfigRef.current.damageMultiplier;
         }
@@ -891,7 +923,7 @@ const App: React.FC = () => {
       }
   };
 
-  const applyUpgrade = useCallback((upgrade: Upgrade) => {
+  const handleApplyUpgrade = useCallback((upgrade: Upgrade) => {
     let newPlayerState = { ...playerRef.current, upgrades: [...playerRef.current.upgrades, upgrade.id] };
     upgrade.apply(newPlayerState, gameContextForUpgrades);
 
@@ -899,26 +931,31 @@ const App: React.FC = () => {
         const xpToNextLevel = Math.floor(XP_PER_LEVEL_BASE * Math.pow(XP_LEVEL_MULTIPLIER, newPlayerState.level - 1));
         newPlayerState = { ...newPlayerState, xpToNextLevel };
     }
-
     setPlayer(newPlayerState);
-
-    if (canPickMultipleUpgrades > 1) {
-        setCanPickMultipleUpgrades(prev => prev -1);
-        setCurrentUpgradeChoices(prevChoices => prevChoices.filter(u => u.id !== upgrade.id));
-    } else {
-        setGameState(GameState.Playing);
-        setCurrentUpgradeChoices([]);
-        setCanPickMultipleUpgrades(0);
-    }
     lastFrameTimeRef.current = performance.now();
-  }, [gameContextForUpgrades, canPickMultipleUpgrades]);
+  }, [gameContextForUpgrades]);
+
+  const handleAllPicksMade = useCallback(() => {
+    setGameState(GameState.Playing);
+    setCurrentOfferedUpgradesForSelection([]);
+    setCurrentPicksAllowedForSelection(0);
+    lastFrameTimeRef.current = performance.now();
+  }, []);
+
+  const handleRequestReroll = useCallback(() => {
+    setPlayer(p => ({...p, usedFreeRerollThisLevelUp: true}));
+    handleLevelUp(); // This will generate new choices and pass them to UpgradeSelectionScreen
+  }, [handleLevelUp]);
+
 
   const applyBurnEffect = useCallback((enemyToAffect: Enemy, currentPlayer: Player): Enemy => {
     if (!currentPlayer.appliesBurn) return enemyToAffect;
 
     const burnConfig = currentPlayer.appliesBurn;
     const existingBurn = enemyToAffect.statusEffects.find(se => se.type === 'burn');
-    let damagePerTick = currentPlayer.projectileDamage * burnConfig.damageFactor;
+    const avgPlayerDamage = (currentPlayer.minProjectileDamage + currentPlayer.maxProjectileDamage) / 2;
+    let damagePerTick = avgPlayerDamage * burnConfig.damageFactor;
+
     if(currentPlayer.isAdmin && adminConfigRef.current.damageMultiplier){
         damagePerTick *= adminConfigRef.current.damageMultiplier;
     }
@@ -972,7 +1009,7 @@ const App: React.FC = () => {
             text: "CONGELADO!",
             x: enemyToAffect.x + enemyToAffect.width / 2,
             y: enemyToAffect.y - 5,
-            vy: -55, life: 0.8, initialLife: 0.8, color: "#00FFFF", fontSize: 10, 
+            vy: -55, life: 0.8, initialLife: 0.8, color: "#00FFFF", fontSize: 20, 
         };
         setFloatingTexts(prev => [...prev, chillText]);
     }
@@ -984,8 +1021,8 @@ const App: React.FC = () => {
 
     createParticleEffect(projectile.x + projectile.width/2, projectile.y + projectile.height/2, 50, '#FF8000', 50, 250 * 2.2, 0.7, 'explosion'); 
 
-    const damageFactor = damageFactorOverride ?? 0.75; // Default factor if not provided
-    let explosionDamage = projectile.damage * damageFactor;
+    const damageFactor = damageFactorOverride ?? 0.75; 
+    let explosionDamage = projectile.damage * damageFactor; // projectile.damage is already average damage
 
     if(playerRef.current.isAdmin && adminConfigRef.current.damageMultiplier){
         explosionDamage *= adminConfigRef.current.damageMultiplier;
@@ -1001,7 +1038,7 @@ const App: React.FC = () => {
         const dy = (enemy.y + enemy.height / 2) - explosionCenterY;
         const distanceSq = dx * dx + dy * dy;
         if (distanceSq < projectile.explosionRadius! * projectile.explosionRadius!) {
-            enemiesInRadius.push({...enemy, distanceToExplosion: Math.sqrt(distanceSq)}); // Add distance for sorting
+            enemiesInRadius.push({...enemy, distanceToExplosion: Math.sqrt(distanceSq)}); 
         }
     });
 
@@ -1025,7 +1062,7 @@ const App: React.FC = () => {
             text: `${Math.round(explosionDamage)}`,
             x: enemy.x + enemy.width / 2,
             y: enemy.y,
-            vy: -77, life: 0.65, initialLife: 0.65, color: "#FF8C00", fontSize: 9, 
+            vy: -77, life: 0.65, initialLife: 0.65, color: "#FF8C00", fontSize: 18, 
         };
         setFloatingTexts(prev => [...prev, damageText]);
 
@@ -1055,14 +1092,13 @@ const App: React.FC = () => {
   const checkCollisions = useCallback(() => {
     setPlayerProjectiles(prevProj => prevProj.filter(proj => {
       let projectileNeedsDestroy = false;
-      let directHitOccurred = false; // To track if any direct hit happened with this projectile this frame
+      let directHitOccurred = false; 
 
       proj.damagedEnemyIDs = proj.damagedEnemyIDs || [];
 
       setEnemies(prevEnemies => prevEnemies.map(enemy => {
         if (!enemy || enemy.hp <= 0) return null;
         
-        // If projectile already marked for destruction (e.g. by explosion) and not pierceable further, or already damaged this enemy
         if (projectileNeedsDestroy || proj.damagedEnemyIDs!.includes(enemy.id)) {
             return enemy;
         }
@@ -1073,45 +1109,48 @@ const App: React.FC = () => {
           directHitOccurred = true;
           proj.damagedEnemyIDs!.push(enemy.id); 
 
-          let damageDealt = proj.damage;
-          if (playerRef.current.isAdmin && adminConfigRef.current.damageMultiplier) {
-            damageDealt *= adminConfigRef.current.damageMultiplier;
-          }
-
-          const isCrit = Math.random() < playerRef.current.critChance;
+          let actualDamageDealt;
           let damageTextColor = "#FFFFFF";
           let showDamageNumber = true;
+          const isCrit = Math.random() < playerRef.current.critChance;
 
           if (isCrit) {
-            damageDealt *= playerRef.current.critMultiplier;
+            actualDamageDealt = playerRef.current.maxProjectileDamage * playerRef.current.critMultiplier;
             const newCritText: FloatingText = {
               id: `crit-${performance.now()}-${Math.random()}`,
               text: "CRÍTICO!",
               x: enemy.x + enemy.width / 2,
               y: enemy.y + enemy.height / 2 - 10,
-              vy: -88, life: 0.7, initialLife: 0.7, color: "#FF00FF", fontSize: 12, 
+              vy: -88, life: 0.7, initialLife: 0.7, color: "#FF00FF", fontSize: 24, 
             };
             setFloatingTexts(prev => [...prev, newCritText]);
             showDamageNumber = false; 
+          } else {
+            actualDamageDealt = Math.floor(Math.random() * (playerRef.current.maxProjectileDamage - playerRef.current.minProjectileDamage + 1)) + playerRef.current.minProjectileDamage;
+            damageTextColor = getDamageColor(actualDamageDealt, playerRef.current.minProjectileDamage, playerRef.current.maxProjectileDamage);
+          }
+          
+          if (playerRef.current.isAdmin && adminConfigRef.current.damageMultiplier) {
+            actualDamageDealt *= adminConfigRef.current.damageMultiplier;
           }
           
           let enemyAfterHit = { ...enemy };
           if (playerRef.current.appliesBurn && Math.random() < playerRef.current.appliesBurn.chance) {
              enemyAfterHit = applyBurnEffect(enemyAfterHit, playerRef.current);
-             showDamageNumber = false; 
+             showDamageNumber = isCrit ? false : true; // Show number if not crit, even if burn applies
           }
           if (playerRef.current.appliesChill && Math.random() < playerRef.current.appliesChill.chance) {
              enemyAfterHit = applyChillEffect(enemyAfterHit, playerRef.current);
-             showDamageNumber = false; 
+             showDamageNumber = isCrit ? false : true; // Show number if not crit, even if chill applies
           }
 
           if (showDamageNumber) {
              const damageText: FloatingText = {
                 id: `dmg-${performance.now()}-${enemy.id}`,
-                text: `${Math.round(damageDealt)}`,
+                text: `${Math.round(actualDamageDealt)}`,
                 x: enemy.x + enemy.width / 2,
                 y: enemy.y,
-                vy: -77, life: 0.65, initialLife: 0.65, color: damageTextColor, fontSize: 11,
+                vy: -77, life: 0.65, initialLife: 0.65, color: damageTextColor, fontSize: 22,
             };
             setFloatingTexts(prev => [...prev, damageText]);
           }
@@ -1122,12 +1161,11 @@ const App: React.FC = () => {
             6, proj.color, SPRITE_PIXEL_SIZE * 3, 90 * SPRITE_PIXEL_SIZE, 0.25, 'generic' 
           );
           
-          let newHp = enemy.hp - damageDealt;
+          let newHp = enemy.hp - actualDamageDealt;
           
-          // Handle on-hit explosion chance
           if (proj.onHitExplosionConfig && proj.explosionRadius && Math.random() < proj.onHitExplosionConfig.chance) {
             handleExplosion(proj, proj.onHitExplosionConfig.maxTargets, proj.onHitExplosionConfig.damageFactor);
-            proj.hitsLeft = 0; // Explosion consumes the projectile, overrides pierce
+            proj.hitsLeft = 0; 
           }
           
           if (proj.hitsLeft !== undefined && proj.hitsLeft > 0) {
@@ -1135,7 +1173,7 @@ const App: React.FC = () => {
               if (proj.hitsLeft <= 0) { 
                   projectileNeedsDestroy = true;
               }
-          } else if (proj.hitsLeft === undefined) { // No pierce capability, destroy on first hit
+          } else if (proj.hitsLeft === undefined) { 
               projectileNeedsDestroy = true;
           }
 
@@ -1157,16 +1195,13 @@ const App: React.FC = () => {
           }
           
           if (playerRef.current.lifeSteal > 0) {
-            setPlayer(p => ({...p, hp: Math.min(p.maxHp, p.hp + damageDealt * p.lifeSteal)}));
+            setPlayer(p => ({...p, hp: Math.min(p.maxHp, p.hp + actualDamageDealt * p.lifeSteal)}));
           }
 
           return { ...enemyAfterHit, hp: newHp, inFuryMode: updatedFuryMode };
         }
         return enemy;
       }).filter(Boolean) as Enemy[]);
-
-      // Note: The logic for `proj.isExplosive` (for off-screen explosions) is handled in `updateProjectiles`.
-      // Here, we are concerned with direct hits and on-hit effects.
       
       return !projectileNeedsDestroy; 
     }));
@@ -1192,7 +1227,7 @@ const App: React.FC = () => {
 
         if (currentPlayer.shieldMaxHp && currentPlayer.shieldCurrentHp && currentPlayer.shieldCurrentHp > 0) {
             setPlayer(p => {
-              const newShieldHp = Math.max(0, (p.shieldCurrentHp || 0) - 1); // Shield takes 1 "hit point" per projectile
+              const newShieldHp = Math.max(0, (p.shieldCurrentHp || 0) - 1); 
               return { ...p, shieldCurrentHp: newShieldHp, shieldLastDamagedTime: performance.now() }
             });
             createParticleEffect(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 20, '#00FFFF', 25, 100 * 2.2, 0.4, 'shield_hit'); 
@@ -1268,7 +1303,7 @@ const App: React.FC = () => {
     }
     if (playerUpdateResult.updatedPlayer.justDashed) {
         const dashDirectionVec = playerUpdateResult.updatedPlayer.dashDirection === 'right' ? 1 : -1;
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 35; i++) { 
             const angleOffset = (Math.random() - 0.5) * Math.PI * 0.4; 
             const angle = Math.atan2(Math.sin(angleOffset), -dashDirectionVec * Math.cos(angleOffset) );
             const speed = 250 + Math.random() * 150;
@@ -1288,7 +1323,7 @@ const App: React.FC = () => {
         createParticleEffect(
             playerUpdateResult.updatedPlayer.x + playerUpdateResult.updatedPlayer.width / 2,
             playerUpdateResult.updatedPlayer.y + playerUpdateResult.updatedPlayer.height / 2,
-            1,
+            2, 
             `rgba(200, 220, 255, ${0.4 + Math.random() * 0.2})`,
             7 + Math.random() * 5,
             120 + Math.random() * 60, 
@@ -1330,7 +1365,7 @@ const App: React.FC = () => {
                       text: `${Math.round(damageFromBurn)}`,
                       x: enemy.x + enemy.width / 2,
                       y: enemy.y,
-                      vy: -66, life: 0.6, initialLife: 0.6, color: "#FFA500", fontSize: 10,
+                      vy: -66, life: 0.6, initialLife: 0.6, color: "#FFA500", fontSize: 20,
                   };
                   setFloatingTexts(prev => [...prev, burnText]);
 
@@ -1872,14 +1907,13 @@ const App: React.FC = () => {
           const alpha = Math.max(0, ft.life / ft.initialLife);
           ctx.font = `bold ${ft.fontSize}px ${PIXEL_FONT_FAMILY}`;
           ctx.textAlign = 'center';
-          let r = 255, g = 255, b = 255; 
-            if (ft.color === 'red' || ft.color === '#FF00FF') { r = 255; g = 0; b = 255; } 
-            else if (ft.color === '#FFA500' || ft.color === '#FF8C00') { r = 255; g = 165; b = 0; } 
-            else if (ft.color === '#00FFFF' || ft.color === '#ADD8E6') { r = 0; g = 255; b = 255; } 
-            else if (ft.color === '#FFD700' || ft.color === '#FFDF00') { r = 255; g = 215; b = 0; }
-            else if (ft.color === '#FFFFFF') { r = 255; g = 255; b = 255; }
-          ctx.fillStyle = `rgba(${r},${g},${b}, ${alpha})`;
-          ctx.shadowColor = `rgba(${r},${g},${b}, ${alpha*0.7})`;
+          ctx.fillStyle = ft.color.startsWith('#') ? hexToRgba(ft.color, alpha) : `rgba(255,255,255, ${alpha})`; // Default white if not hex
+          
+          if(ft.color.startsWith('#')){
+            ctx.shadowColor = hexToRgba(ft.color, alpha * 0.7);
+          } else { // Fallback for simple color names like "red"
+            ctx.shadowColor = `rgba(0,0,0, ${alpha*0.3})`;
+          }
           ctx.shadowBlur = 3;
           ctx.fillText(ft.text, ft.x, ft.y);
           ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
@@ -1889,8 +1923,8 @@ const App: React.FC = () => {
         const BAR_HEIGHT = 18 * (CANVAS_HEIGHT / 650);
         const BAR_X = 20 * (CANVAS_WIDTH / 1100);
         const BAR_Y_OFFSET_HP = 15 * (CANVAS_HEIGHT / 650);
-        const BAR_Y_OFFSET_EXP = 45 * (CANVAS_HEIGHT / 650);
-        const BAR_BORDER = 2;
+        const BAR_Y_OFFSET_EXP = BAR_Y_OFFSET_HP + BAR_HEIGHT + (2 * (CANVAS_HEIGHT/650)) + 10 * (CANVAS_HEIGHT/650);
+        const BAR_BORDER = 2 * Math.min(CANVAS_WIDTH/1100, CANVAS_HEIGHT/650);
         const FONT_SIZE_SMALL = Math.round(9 * Math.min(CANVAS_WIDTH / 1100, CANVAS_HEIGHT / 650));
         const FONT_SIZE_MEDIUM = Math.round(11 * Math.min(CANVAS_WIDTH / 1100, CANVAS_HEIGHT / 650));
         const FONT_SIZE_LARGE = Math.round(18 * Math.min(CANVAS_WIDTH / 1100, CANVAS_HEIGHT / 650));
@@ -1899,81 +1933,110 @@ const App: React.FC = () => {
         const EXP_BAR_COLOR = '#00FFFF'; 
         const BAR_BG_COLOR = 'rgba(10, 20, 50, 0.7)'; 
         const BAR_BORDER_COLOR = '#4A00E0'; 
+        const BOX_SPACING = 10 * (CANVAS_HEIGHT / 650);
 
+        // --- HP Bar ---
         ctx.fillStyle = BAR_BG_COLOR;
         ctx.fillRect(BAR_X - BAR_BORDER, BAR_Y_OFFSET_HP - BAR_BORDER, BAR_WIDTH + BAR_BORDER*2, BAR_HEIGHT + BAR_BORDER*2);
         ctx.fillStyle = HP_BAR_COLOR;
         ctx.fillRect(BAR_X, BAR_Y_OFFSET_HP, BAR_WIDTH * (currentPlayer.hp / currentPlayer.maxHp), BAR_HEIGHT);
         ctx.strokeStyle = BAR_BORDER_COLOR; ctx.lineWidth = BAR_BORDER;
-        ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = 4;
+        ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = BAR_BORDER * 2;
         ctx.strokeRect(BAR_X - BAR_BORDER, BAR_Y_OFFSET_HP - BAR_BORDER, BAR_WIDTH + BAR_BORDER*2, BAR_HEIGHT + BAR_BORDER*2);
         ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
         ctx.fillStyle = HUD_TEXT_COLOR; ctx.font = `${FONT_SIZE_SMALL}px ${PIXEL_FONT_FAMILY}`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(`${Math.ceil(currentPlayer.hp)} / ${currentPlayer.maxHp}`, BAR_X + BAR_WIDTH / 2, BAR_Y_OFFSET_HP + BAR_HEIGHT / 2);
 
+        // --- EXP Bar ---
         ctx.fillStyle = BAR_BG_COLOR;
         ctx.fillRect(BAR_X - BAR_BORDER, BAR_Y_OFFSET_EXP - BAR_BORDER, BAR_WIDTH + BAR_BORDER*2, BAR_HEIGHT + BAR_BORDER*2);
         ctx.fillStyle = EXP_BAR_COLOR;
         ctx.fillRect(BAR_X, BAR_Y_OFFSET_EXP, BAR_WIDTH * (currentPlayer.exp / currentPlayer.xpToNextLevel), BAR_HEIGHT);
-        ctx.strokeStyle = BAR_BORDER_COLOR; ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = 4;
+        ctx.strokeStyle = BAR_BORDER_COLOR; ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = BAR_BORDER * 2;
         ctx.strokeRect(BAR_X - BAR_BORDER, BAR_Y_OFFSET_EXP - BAR_BORDER, BAR_WIDTH + BAR_BORDER*2, BAR_HEIGHT + BAR_BORDER*2);
         ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
         ctx.fillStyle = '#0A0F1A'; 
         ctx.fillText(`EXP: ${currentPlayer.exp}/${currentPlayer.xpToNextLevel}`, BAR_X + BAR_WIDTH / 2, BAR_Y_OFFSET_EXP + BAR_HEIGHT / 2);
         
-        const COIN_TEXT_Y = 120 * (CANVAS_HEIGHT / 650);
-        ctx.font = `bold ${FONT_SIZE_MEDIUM}px ${PIXEL_FONT_FAMILY}`;
+        // --- Level & Nickname Box ---
+        const LEVEL_NICK_BOX_Y = BAR_Y_OFFSET_EXP + BAR_HEIGHT + BAR_BORDER * 2 + BOX_SPACING;
+        const LEVEL_NICK_BOX_HEIGHT = BAR_HEIGHT * 1.3;
+        ctx.fillStyle = BAR_BG_COLOR;
+        ctx.fillRect(BAR_X - BAR_BORDER, LEVEL_NICK_BOX_Y - BAR_BORDER, BAR_WIDTH + BAR_BORDER*2, LEVEL_NICK_BOX_HEIGHT + BAR_BORDER*2);
+        ctx.strokeStyle = BAR_BORDER_COLOR; ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = BAR_BORDER * 2;
+        ctx.strokeRect(BAR_X - BAR_BORDER, LEVEL_NICK_BOX_Y - BAR_BORDER, BAR_WIDTH + BAR_BORDER*2, LEVEL_NICK_BOX_HEIGHT + BAR_BORDER*2);
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+
+        ctx.fillStyle = HUD_TEXT_COLOR;
+        ctx.font = `${FONT_SIZE_SMALL}px ${PIXEL_FONT_FAMILY}`;
+        ctx.textAlign = 'left'; 
+        const textPaddingInsideBox = BAR_HEIGHT * 0.2;
+        ctx.fillText(`Nvl: ${currentPlayer.level}`, BAR_X + textPaddingInsideBox, LEVEL_NICK_BOX_Y + LEVEL_NICK_BOX_HEIGHT * 0.33);
+        ctx.fillText(`${currentPlayer.nickname.substring(0,12)}${currentPlayer.nickname.length > 12 ? '...' : ''}`, BAR_X + textPaddingInsideBox, LEVEL_NICK_BOX_Y + LEVEL_NICK_BOX_HEIGHT * 0.73);
+
+        let currentYOffset = LEVEL_NICK_BOX_Y + LEVEL_NICK_BOX_HEIGHT + BAR_BORDER * 2 + BOX_SPACING;
+
+        // --- Coins Box ---
+        ctx.fillStyle = BAR_BG_COLOR;
+        ctx.fillRect(BAR_X - BAR_BORDER, currentYOffset - BAR_BORDER, BAR_WIDTH + BAR_BORDER * 2, BAR_HEIGHT + BAR_BORDER * 2);
+        ctx.strokeStyle = BAR_BORDER_COLOR; ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = BAR_BORDER * 2;
+        ctx.strokeRect(BAR_X - BAR_BORDER, currentYOffset - BAR_BORDER, BAR_WIDTH + BAR_BORDER * 2, BAR_HEIGHT + BAR_BORDER * 2);
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+        
+        ctx.font = `bold ${FONT_SIZE_SMALL}px ${PIXEL_FONT_FAMILY}`;
         ctx.fillStyle = '#FFD700'; 
-        ctx.textAlign = 'left';
-        ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 3;
-        ctx.fillText(`Moedas: ${playerCoins} 💰`, BAR_X, COIN_TEXT_Y);
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+        ctx.textAlign = 'center';
+        ctx.fillText(`Moedas: ${playerCoins} 💰`, BAR_X + BAR_WIDTH / 2, currentYOffset + BAR_HEIGHT / 2);
+        currentYOffset += BAR_HEIGHT + BAR_BORDER * 2 + BOX_SPACING;
 
-
-        const TEXT_Y_LEVEL = 75 * (CANVAS_HEIGHT / 650);
-        const TEXT_Y_NICKNAME = 90 * (CANVAS_HEIGHT / 650);
-        const TEXT_Y_ADMIN_TAG = 105 * (CANVAS_HEIGHT / 650);
-        const DASH_COOLDOWN_BAR_Y = TEXT_Y_ADMIN_TAG + 30 * (CANVAS_HEIGHT / 650); 
-
-        ctx.textBaseline = 'alphabetic'; ctx.fillStyle = HUD_TEXT_COLOR;
-        ctx.font = `${FONT_SIZE_MEDIUM}px ${PIXEL_FONT_FAMILY}`; ctx.textAlign = 'left';
-        ctx.shadowColor = HUD_TEXT_COLOR; ctx.shadowBlur = 3;
-        ctx.fillText(`Nvl: ${currentPlayer.level}`, BAR_X, TEXT_Y_LEVEL);
-        ctx.fillText(`${currentPlayer.nickname}`, BAR_X, TEXT_Y_NICKNAME);
+        // --- Admin Tag Box (Conditional) ---
         if (currentPlayer.isAdmin) {
-          ctx.fillStyle = '#FFD700'; 
-          ctx.shadowColor = '#FFD700';
-          ctx.fillText(`(Debug)`, BAR_X, TEXT_Y_ADMIN_TAG);
-        }
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+          const ADMIN_BOX_WIDTH = BAR_WIDTH * 0.7;
+          const ADMIN_BOX_HEIGHT = BAR_HEIGHT * 0.9;
+          ctx.fillStyle = BAR_BG_COLOR;
+          ctx.fillRect(BAR_X - BAR_BORDER, currentYOffset - BAR_BORDER, ADMIN_BOX_WIDTH + BAR_BORDER * 2, ADMIN_BOX_HEIGHT + BAR_BORDER * 2);
+          ctx.strokeStyle = BAR_BORDER_COLOR; ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = BAR_BORDER * 2;
+          ctx.strokeRect(BAR_X - BAR_BORDER, currentYOffset - BAR_BORDER, ADMIN_BOX_WIDTH + BAR_BORDER * 2, ADMIN_BOX_HEIGHT + BAR_BORDER * 2);
+          ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
 
+          ctx.fillStyle = '#FFD700'; 
+          ctx.font = `${FONT_SIZE_SMALL}px ${PIXEL_FONT_FAMILY}`;
+          ctx.textAlign = 'center';
+          ctx.fillText(`(Debug)`, BAR_X + ADMIN_BOX_WIDTH / 2, currentYOffset + ADMIN_BOX_HEIGHT / 2);
+          currentYOffset += ADMIN_BOX_HEIGHT + BAR_BORDER * 2 + BOX_SPACING;
+        }
+
+
+        // --- Dash Cooldown Bar (Conditional) ---
         if (currentPlayer.hasDashSkill) {
-            const dashCooldownBarWidth = BAR_WIDTH * 0.6; 
-            const dashCooldownBarHeight = BAR_HEIGHT * 0.8;
+            const dashCooldownBarWidth = BAR_WIDTH * 0.7; 
+            const dashCooldownBarHeight = BAR_HEIGHT * 0.9;
 
             ctx.fillStyle = BAR_BG_COLOR;
-            ctx.fillRect(BAR_X - BAR_BORDER, DASH_COOLDOWN_BAR_Y - BAR_BORDER, dashCooldownBarWidth + BAR_BORDER * 2, dashCooldownBarHeight + BAR_BORDER * 2);
+            ctx.fillRect(BAR_X - BAR_BORDER, currentYOffset - BAR_BORDER, dashCooldownBarWidth + BAR_BORDER * 2, dashCooldownBarHeight + BAR_BORDER * 2);
 
             const dashReady = performance.now() - (currentPlayer.lastDashTimestamp || 0) > (currentPlayer.dashCooldownTime || 30) * 1000;
             let dashProgress = 1;
             if (!dashReady) {
                 dashProgress = (performance.now() - (currentPlayer.lastDashTimestamp || 0)) / ((currentPlayer.dashCooldownTime || 30) * 1000);
             }
+            dashProgress = Math.max(0, Math.min(1, dashProgress));
+
 
             ctx.fillStyle = dashReady ? '#00FF7F' : '#FFD700'; 
-            ctx.fillRect(BAR_X, DASH_COOLDOWN_BAR_Y, dashCooldownBarWidth * dashProgress, dashCooldownBarHeight);
+            ctx.fillRect(BAR_X, currentYOffset, dashCooldownBarWidth * dashProgress, dashCooldownBarHeight);
 
             ctx.strokeStyle = BAR_BORDER_COLOR; ctx.lineWidth = BAR_BORDER;
-            ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = 3;
-            ctx.strokeRect(BAR_X - BAR_BORDER, DASH_COOLDOWN_BAR_Y - BAR_BORDER, dashCooldownBarWidth + BAR_BORDER * 2, dashCooldownBarHeight + BAR_BORDER * 2);
+            ctx.shadowColor = BAR_BORDER_COLOR; ctx.shadowBlur = BAR_BORDER * 2;
+            ctx.strokeRect(BAR_X - BAR_BORDER, currentYOffset - BAR_BORDER, dashCooldownBarWidth + BAR_BORDER * 2, dashCooldownBarHeight + BAR_BORDER * 2);
             ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
 
             ctx.fillStyle = dashReady ? '#0A0F1A' : HUD_TEXT_COLOR;
             ctx.font = `${FONT_SIZE_SMALL -1}px ${PIXEL_FONT_FAMILY}`;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             const dashCooldownRemaining = (((currentPlayer.dashCooldownTime || 30) * 1000 - (performance.now() - (currentPlayer.lastDashTimestamp || 0)))/1000);
-            ctx.fillText(dashReady ? "Dash!" : `Espera: ${Math.max(0, dashCooldownRemaining).toFixed(1)}s`, BAR_X + dashCooldownBarWidth / 2, DASH_COOLDOWN_BAR_Y + dashCooldownBarHeight / 2);
+            ctx.fillText(dashReady ? "Dash!" : `Espera: ${Math.max(0, dashCooldownRemaining).toFixed(1)}s`, BAR_X + dashCooldownBarWidth / 2, currentYOffset + dashCooldownBarHeight / 2);
         }
 
 
@@ -2226,6 +2289,7 @@ const App: React.FC = () => {
       window.removeEventListener('mousemove', handleCanvasMouseMove);
       canvasRef.current?.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup', onMouseUp);
+      
       if (thunderboltIntervalRef.current) clearInterval(thunderboltIntervalRef.current);
     };
   }, [isDraggingVolumeSlider, handleToggleMute, handleVolumeChange]); 
@@ -2280,28 +2344,30 @@ const App: React.FC = () => {
     selectedStaff?: string | null
   ) => {
     let newPlayerState = getDefaultPlayerState(playerNickname, selectedHat, selectedStaff);
-    newPlayerState = applyHatEffect(newPlayerState, selectedHat);
-    newPlayerState = applyStaffEffectToPlayerBase(newPlayerState, selectedStaff);
     
-    // Apply permanent skills based on current state, not refs
-    newPlayerState.purchasedPermanentSkills = purchasedPermanentSkillsState;
-    newPlayerState = applyPermanentSkillEffectsToPlayer(newPlayerState); 
-    
-    // Set initial coins for the game session
-    newPlayerState.coins = playerCoins; // Use current global playerCoins
-
-
     if (currentAdminConfig?.isAdminEnabled) {
         newPlayerState.isAdmin = true;
         newPlayerState.xpToNextLevel = XP_PER_LEVEL_BASE; 
 
         if(currentAdminConfig.damageMultiplier && currentAdminConfig.damageMultiplier > 0){
-            newPlayerState.projectileDamage *= currentAdminConfig.damageMultiplier;
+            newPlayerState.minProjectileDamage = (newPlayerState.baseMinProjectileDamage || PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE) * currentAdminConfig.damageMultiplier;
+            newPlayerState.maxProjectileDamage = (newPlayerState.baseMaxProjectileDamage || PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE) * currentAdminConfig.damageMultiplier;
         }
         if(currentAdminConfig.defenseBoost !== undefined && currentAdminConfig.defenseBoost >= 0){
-            newPlayerState.defense = Math.min(0.95, newPlayerState.defense + (currentAdminConfig.defenseBoost || 0));
+            newPlayerState.defense = Math.min(0.95, (newPlayerState.baseDefense || PLAYER_INITIAL_DEFENSE) + (currentAdminConfig.defenseBoost || 0));
         }
+    }
+    
+    newPlayerState = applyHatEffect(newPlayerState, selectedHat); // Apply hat effects on potentially admin-buffed stats
+    newPlayerState = applyStaffEffectToPlayerBase(newPlayerState, selectedStaff); // Apply staff effects
+    
+    newPlayerState.purchasedPermanentSkills = purchasedPermanentSkillsState;
+    newPlayerState = applyPermanentSkillEffectsToPlayer(newPlayerState); 
+    
+    newPlayerState.coins = playerCoins; 
 
+
+    if (currentAdminConfig?.isAdminEnabled) { // Apply selected skills after all base stats and item effects are set
         Object.entries(currentAdminConfig.selectedSkills).forEach(([skillId, count]) => {
             const upgrade = InitialUpgrades.find(u => u.id === skillId);
             if (upgrade) {
@@ -2324,8 +2390,8 @@ const App: React.FC = () => {
     setActiveLightningBolts([]);
     setFloatingTexts([]);
     setAvailableUpgrades(InitialUpgrades.map(u => ({...u})));
-    setCurrentUpgradeChoices([]);
-    setCanPickMultipleUpgrades(0);
+    setCurrentOfferedUpgradesForSelection([]);
+    setCurrentPicksAllowedForSelection(0);
     setGameTime(0);
 
     const basePlatforms = InitialStaticPlatforms.map(p => ({
@@ -2352,7 +2418,7 @@ const App: React.FC = () => {
 
     if (thunderboltIntervalRef.current) clearInterval(thunderboltIntervalRef.current);
     thunderboltIntervalRef.current = null;
-
+    
     if (newPlayerState.thunderboltEffectiveBolts && newPlayerState.thunderboltEffectiveBolts > 0 && gameContextForUpgrades.activateThunderbolts) {
       gameContextForUpgrades.activateThunderbolts(newPlayerState.thunderboltEffectiveBolts, 5000);
     }
@@ -2380,7 +2446,7 @@ const App: React.FC = () => {
         setSelectedHatIdForSelectionScreen(currentSelectableHats[0]?.id || DEFAULT_HAT_ID);
     }
     
-    const currentUnlockedStaffs = getPurchasableStaffs(); // Assuming this list is fine for staff
+    const currentUnlockedStaffs = getPurchasableStaffs(); 
     if (!selectedStaffIdForSelectionScreen || !currentUnlockedStaffs.find(s => s.id === selectedStaffIdForSelectionScreen)) {
         setSelectedStaffIdForSelectionScreen(currentUnlockedStaffs[0]?.id || DEFAULT_STAFF_ID);
     }
@@ -2476,24 +2542,6 @@ const App: React.FC = () => {
             [skillId]: newCount,
         }
     }));
-  };
-
-  const handleRerollUpgrades = () => {
-    if (playerRef.current.selectedHatId === 'hat_fedora' && playerRef.current.canFreeRerollUpgrades && !playerRef.current.usedFreeRerollThisLevelUp) {
-        setPlayer(p => ({...p, usedFreeRerollThisLevelUp: true}));
-        const currentAppraisalChoices = playerRef.current.appraisalChoices;
-        const chosenUpgrades: Upgrade[] = [];
-        let filteredAvailable = availableUpgrades.filter(u => {
-            const timesApplied = playerRef.current.upgrades.filter(uid => uid === u.id).length;
-            return !u.maxApplications || timesApplied < u.maxApplications;
-        });
-        for (let i = 0; i < currentAppraisalChoices && filteredAvailable.length > 0; i++) {
-            const randomIndex = Math.floor(Math.random() * filteredAvailable.length);
-            chosenUpgrades.push(filteredAvailable[randomIndex]);
-            filteredAvailable.splice(randomIndex, 1);
-        }
-        setCurrentUpgradeChoices(chosenUpgrades);
-    }
   };
 
   const handlePurchaseCosmetic = (itemId: string, price: number) => {
@@ -2896,30 +2944,19 @@ const App: React.FC = () => {
         )}
 
         {gameState === GameState.ChoosingUpgrade && (
-          <div className={`${panelBaseClass} justify-center text-center`} role="dialog" aria-labelledby="upgradeTitle">
-                <h2 id="upgradeTitle" className="text-xl md:text-2xl font-bold mb-3 text-yellow-300">
-                    {canPickMultipleUpgrades > 1 ? `Escolha ${canPickMultipleUpgrades} Melhorias Cósmicas:` : `Aprimoramento Detectado! Escolha Melhoria:`}
-                </h2>
-                {currentUpgradeChoices.length > 0 ? (
-                    <div className="flex flex-wrap justify-center items-start">
-                        {currentUpgradeChoices.map(upgrade => (
-                            <UpgradeCard key={upgrade.id} upgrade={upgrade} onSelect={() => applyUpgrade(upgrade)} />
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-gray-400 text-sm">Nenhuma melhoria cósmica disponível.</p>
-                )}
-                {playerRef.current.selectedHatId === 'hat_fedora' && playerRef.current.canFreeRerollUpgrades && !playerRef.current.usedFreeRerollThisLevelUp && currentUpgradeChoices.length > 0 && (
-                     <button onClick={handleRerollUpgrades} className={`${commonButtonClass} mt-4`}>
-                        Rerrolar (Grátis)
-                    </button>
-                )}
-                 {currentUpgradeChoices.length === 0 && (
-                     <button onClick={() => { setGameState(GameState.Playing); setCanPickMultipleUpgrades(0);}} className={`${commonButtonClass} mt-6`}>
-                        Continuar
-                    </button>
-                 )}
-            </div>
+            <UpgradeSelectionScreen
+                player={playerRef.current}
+                choicesOffered={currentOfferedUpgradesForSelection}
+                picksAllowed={currentPicksAllowedForSelection}
+                availableUpgradePool={availableUpgrades}
+                initialUpgradePool={InitialUpgrades}
+                upgradeIcons={UPGRADE_ICONS}
+                onUpgradeSelected={handleApplyUpgrade}
+                onAllPicksMade={handleAllPicksMade}
+                onRequestReroll={handleRequestReroll}
+                panelBaseClass={panelBaseClass}
+                commonButtonClass={commonButtonClass}
+            />
         )}
 
         {gameState === GameState.GameOver && (

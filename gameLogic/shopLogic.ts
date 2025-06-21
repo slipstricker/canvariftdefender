@@ -3,7 +3,7 @@
 import { HatItem, StaffItem, LeveledSkill, Player } from '../types';
 import { 
     PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, 
-    PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_DEFENSE, PLAYER_INITIAL_PROJECTILE_DAMAGE, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE,
+    PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_DEFENSE, PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE, PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE,
     SKILL_DASH_DURATION, SKILL_DASH_SPEED, SKILL_DASH_INVINCIBILITY_DURATION,
     SKILL_ID_DOUBLE_JUMP, SKILL_ID_DASH, SKILL_ID_XP_BOOST, SKILL_ID_COIN_MAGNET
 } from '../constants';
@@ -64,7 +64,7 @@ export const ALL_HATS_SHOP: HatItem[] = [
     artHeight: GENERIC_HAT_ART_HEIGHT_CONST * 1.2, // Taller hat
     offsetX: calculateHatOffsetX(GENERIC_HAT_ART_WIDTH_CONST), 
     offsetY: calculateHatOffsetY(GENERIC_HAT_ART_HEIGHT_CONST * 1.2), 
-    effectDescription: 'Projéteis são ligeiramente maiores e causam +5% de dano.' 
+    effectDescription: 'Projéteis são ligeiramente maiores e causam +5% de dano (baseado no dano base).' 
   },
   { 
     id: 'hat_propeller_beanie', // Formerly 'hat_challenger' or new
@@ -108,7 +108,7 @@ const calculateStaffOffsetY = (staffArtHeight: number) => PLAYER_HAND_ART_Y - Ma
 
 export const ALL_STAFFS_SHOP: StaffItem[] = [
   { id: DEFAULT_STAFF_ID, name: 'Cajado de Aprendiz Cósmico', description: 'Um cajado básico para iniciar sua jornada.', price: 0, type: 'staff', spriteKey: 'STAFF_WIZARD_STAFF_SPRITE', paletteKey: 'STAFF_WIZARD_STAFF_PALETTE', artWidth: STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST, artHeight: STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST, offsetX: calculateStaffOffsetX(STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST), offsetY: calculateStaffOffsetY(STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST), effectDescription: 'Dispara um projétil em linha reta.', projectileColor: '#8E44AD', projectileGlowColor: '#E0FFFF' },
-  { id: 'staff_emerald', name: 'Cajado de Esmeralda Nebulosa', description: 'Magia teleguiada e veloz como um cometa.', price: 60, type: 'staff', spriteKey: 'STAFF_EMERALD_SPRITE', paletteKey: 'STAFF_EMERALD_PALETTE', artWidth: STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST, artHeight: STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST, offsetX: calculateStaffOffsetX(STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST), offsetY: calculateStaffOffsetY(STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST), effectDescription: 'Projéteis teleguiados, +20% Vel. Ataque, -50% Dano.', projectileColor: '#2ECC71', projectileGlowColor: '#A9DFBF' },
+  { id: 'staff_emerald', name: 'Cajado de Esmeralda Nebulosa', description: 'Magia teleguiada e veloz como um cometa.', price: 60, type: 'staff', spriteKey: 'STAFF_EMERALD_SPRITE', paletteKey: 'STAFF_EMERALD_PALETTE', artWidth: STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST, artHeight: STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST, offsetX: calculateStaffOffsetX(STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST), offsetY: calculateStaffOffsetY(STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST), effectDescription: 'Projéteis teleguiados, +20% Vel. Ataque, -50% Dano (base).', projectileColor: '#2ECC71', projectileGlowColor: '#A9DFBF' },
   { id: 'staff_trident', name: 'Tridente das Marés Cósmicas', description: 'Dispara uma saraivada de energia aquática.', price: 80, type: 'staff', spriteKey: 'STAFF_TRIDENT_SPRITE', paletteKey: 'STAFF_TRIDENT_PALETTE', artWidth: STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST, artHeight: STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST, offsetX: calculateStaffOffsetX(STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST), offsetY: calculateStaffOffsetY(STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST)-2, effectDescription: 'Dispara 3 projéteis em ângulo.', projectileColor: '#3498DB', projectileGlowColor: '#AED6F1' },
   { id: 'staff_boom', name: 'Cajado Supernova', description: 'Faz um grande estrondo cósmico!', price: 90, type: 'staff', spriteKey: 'STAFF_BOOM_SPRITE', paletteKey: 'STAFF_BOOM_PALETTE', artWidth: STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST, artHeight: STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST, offsetX: calculateStaffOffsetX(STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST), offsetY: calculateStaffOffsetY(STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST), effectDescription: 'Projéteis têm 30% de chance de explodir ao atingir um inimigo, causando dano em área em até 4 alvos.', projectileColor: '#F39C12', projectileGlowColor: '#FAD7A0' },
   { id: 'staff_thunder', name: 'Cajado Tempestade Galáctica', description: 'Invoca a fúria dos céus estelares.', price: 125, type: 'staff', spriteKey: 'STAFF_THUNDER_SPRITE', paletteKey: 'STAFF_THUNDER_PALETTE', artWidth: STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST, artHeight: STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST, offsetX: calculateStaffOffsetX(STAFF_WIZARD_STAFF_SPRITE_ART_WIDTH_CONST), offsetY: calculateStaffOffsetY(STAFF_WIZARD_STAFF_SPRITE_ART_HEIGHT_CONST), effectDescription: 'Cada disparo também invoca um raio.', projectileColor: '#F1C40F', projectileGlowColor: '#FDEBD0' },
@@ -186,8 +186,18 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
     // Reset effects that might be exclusive to hats or need resetting
     tempPlayer.movementSpeed = tempPlayer.baseMovementSpeed || PLAYER_MOVEMENT_SPEED;
     tempPlayer.defense = tempPlayer.baseDefense || PLAYER_INITIAL_DEFENSE;
-    tempPlayer.projectileDamage = tempPlayer.baseProjectileDamage || PLAYER_INITIAL_PROJECTILE_DAMAGE;
-    tempPlayer.xpBonus = (tempPlayer.purchasedPermanentSkills[SKILL_ID_XP_BOOST] && PERMANENT_SKILLS_SHOP.find(s=>s.id === SKILL_ID_XP_BOOST)?.levels[tempPlayer.purchasedPermanentSkills[SKILL_ID_XP_BOOST].level-1]?.xpBonus) ? 1 + (PERMANENT_SKILLS_SHOP.find(s=>s.id === SKILL_ID_XP_BOOST)?.levels[tempPlayer.purchasedPermanentSkills[SKILL_ID_XP_BOOST].level-1]?.xpBonus || 0) : 1;
+    // Keep current min/max projectile damage, don't reset to base here. Specific hats will modify it.
+    // tempPlayer.minProjectileDamage = tempPlayer.baseMinProjectileDamage || PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE;
+    // tempPlayer.maxProjectileDamage = tempPlayer.baseMaxProjectileDamage || PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE;
+    
+    // Reset XP bonus to what player might have from permanent skills, then let hat add to it
+    const existingXpSkillLevel = tempPlayer.purchasedPermanentSkills[SKILL_ID_XP_BOOST]?.level || 0;
+    if (existingXpSkillLevel > 0) {
+        const skillDef = PERMANENT_SKILLS_SHOP.find(s=>s.id === SKILL_ID_XP_BOOST);
+        tempPlayer.xpBonus = 1 + (skillDef?.levels[existingXpSkillLevel-1]?.xpBonus || 0);
+    } else {
+        tempPlayer.xpBonus = 1;
+    }
 
 
     tempPlayer.challengerHatMoreEnemies = false;
@@ -199,21 +209,20 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
     }
 
     switch(hat.id) {
-        case 'hat_helmet': // Capacete de Tecno-Alienígena
+        case 'hat_helmet': 
             tempPlayer.defense = Math.min(1, (tempPlayer.baseDefense || PLAYER_INITIAL_DEFENSE) + 0.10);
             tempPlayer.movementSpeed = (tempPlayer.baseMovementSpeed || PLAYER_MOVEMENT_SPEED) * 0.90;
             break;
-        case 'hat_wizard': // Chapéu de Mago Cósmico
-            tempPlayer.projectileDamage = (tempPlayer.baseProjectileDamage || PLAYER_INITIAL_PROJECTILE_DAMAGE) * 1.05;
-            // Visual effect of larger projectiles would be in drawProjectileCanvas if needed
+        case 'hat_wizard': 
+            const wizardMinBonus = (tempPlayer.baseMinProjectileDamage || PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE) * 0.05;
+            const wizardMaxBonus = (tempPlayer.baseMaxProjectileDamage || PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE) * 0.05;
+            tempPlayer.minProjectileDamage += wizardMinBonus;
+            tempPlayer.maxProjectileDamage += wizardMaxBonus;
             break;
-        case 'hat_propeller_beanie': // Gorro Nebulosa Viva
-             tempPlayer.xpBonus = (tempPlayer.xpBonus || 1) + 0.10; // Additive to any existing skill bonus
+        case 'hat_propeller_beanie': 
+             tempPlayer.xpBonus += 0.10; // Additive to any existing skill bonus
             break;
-        case 'hat_crown': // Coroa da Órbita Celestial
-            // Effect: "Inimigos têm 5% de chance de dropar um orbe de cura pequeno."
-            // This effect is likely implemented in enemy death logic, not as a direct player stat.
-            // No direct stat change here, but flag could be set if needed by other systems.
+        case 'hat_crown': 
             break;
     }
     return tempPlayer;
@@ -221,30 +230,24 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
 
 export const applyStaffEffectToPlayerBase = (player: Player, staffId: string | null): Player => {
   let tempPlayer = {...player};
-   // Reset staff-specific base stat modifiers before applying new ones
   tempPlayer.attackSpeed = tempPlayer.baseAttackSpeed || PLAYER_INITIAL_ATTACK_SPEED;
-  // tempPlayer.projectileDamage = tempPlayer.baseProjectileDamage || PLAYER_INITIAL_PROJECTILE_DAMAGE; // Damage for Emerald staff is per-shot
   tempPlayer.projectilesAreHoming = false; 
   tempPlayer.projectileHomingStrength = 0;
   tempPlayer.projectilePierceCount = 0; 
 
   const staff = ALL_STAFFS_SHOP.find(s => s.id === staffId);
-   if (!staff || staff.effectDescription === 'Dispara um projétil em linha reta.') { // Default staff effect
+   if (!staff || staff.effectDescription === 'Dispara um projétil em linha reta.') { 
     return tempPlayer;
   }
   
-  // Specific staff effects that modify player base stats when equipped
   switch(staff.id) {
-    case 'staff_emerald': // Projéteis teleguiados, +20% Vel. Ataque, -50% Dano.
+    case 'staff_emerald': 
       tempPlayer.attackSpeed = (tempPlayer.baseAttackSpeed || PLAYER_INITIAL_ATTACK_SPEED) * 1.20;
-      // Damage modification is handled per-projectile in createPlayerProjectiles
-      // tempPlayer.projectilesAreHoming = true; // Set per-projectile
-      // tempPlayer.projectileHomingStrength = 0.1; // Set per-projectile
+      // Damage modification and homing for Emerald staff is handled per-projectile in createPlayerProjectiles
       break;
-    case 'staff_frozen_tip': // Projéteis perfuram 3 inimigos.
-      // tempPlayer.projectilePierceCount = 3; // Set per-projectile
+    case 'staff_frozen_tip': 
+      // Pierce count is handled per-projectile in createPlayerProjectiles
       break;
-    // Other staves like trident, boom, thunder have their effects applied per-shot in projectileLogic
   }
   return tempPlayer;
 };
