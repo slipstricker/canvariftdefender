@@ -1,3 +1,4 @@
+
 // gameLogic/shopLogic.ts
 
 import { HatItem, StaffItem, LeveledSkill, Player } from '../types';
@@ -120,6 +121,7 @@ export const ALL_STAFFS_SHOP: StaffItem[] = [
 export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
   {
     id: SKILL_ID_DOUBLE_JUMP,
+    numericId: '101',
     name: 'Pulo Duplo Astral',
     icon: '🚀',
     baseDescription: 'Permite pular uma segunda vez no ar, como se flutuasse no vácuo.',
@@ -130,6 +132,7 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
   },
   {
     id: SKILL_ID_DASH,
+    numericId: '102',
     name: 'Dash Impetuoso',
     icon: '💫',
     baseDescription: 'Avanço rápido (Shift). Concede 1s de invencibilidade ao ativar.',
@@ -145,6 +148,7 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
   },
   {
     id: SKILL_ID_XP_BOOST,
+    numericId: '103',
     name: 'Impulso de EXP Cósmico',
     icon: '🌟',
     baseDescription: 'Aumenta permanentemente a quantidade de Experiência (EXP) ganha.',
@@ -159,6 +163,7 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
   },
   {
     id: SKILL_ID_COIN_MAGNET,
+    numericId: '104',
     name: 'Imã de Moedas Galáctico',
     icon: '💰',
     baseDescription: 'Aumenta permanentemente a chance de inimigos derrubarem moedas.',
@@ -194,7 +199,12 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
     const existingXpSkillLevel = tempPlayer.purchasedPermanentSkills[SKILL_ID_XP_BOOST]?.level || 0;
     if (existingXpSkillLevel > 0) {
         const skillDef = PERMANENT_SKILLS_SHOP.find(s=>s.id === SKILL_ID_XP_BOOST);
-        tempPlayer.xpBonus = 1 + (skillDef?.levels[existingXpSkillLevel-1]?.xpBonus || 0);
+        // Corrected xpBonus calculation logic if skillDef and levelDef are found
+        if (skillDef && skillDef.levels[existingXpSkillLevel-1] && skillDef.levels[existingXpSkillLevel-1].xpBonus) {
+             tempPlayer.xpBonus = 1 + (skillDef.levels[existingXpSkillLevel-1].xpBonus || 0);
+        } else {
+            tempPlayer.xpBonus = 1;
+        }
     } else {
         tempPlayer.xpBonus = 1;
     }

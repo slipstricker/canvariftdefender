@@ -47,7 +47,10 @@ const UpgradeCard: React.FC<UpgradeCardProps> = ({
         <span className="text-2xl mr-3" role="img" aria-label={upgrade.name}> {/* Increased icon size and margin */}
           {icon}
         </span>
-        <h3 className="text-sm font-bold text-indigo-400 truncate" style={{ lineHeight: '1.2' }}>{upgrade.name}</h3>
+        <h3 className="text-sm font-bold text-indigo-400 truncate" style={{ lineHeight: '1.2' }}>
+          {upgrade.name}
+          <span className="text-xs text-gray-400 ml-1"> (ID: {upgrade.numericId})</span>
+        </h3>
       </div>
       <p className="text-gray-300 text-xs mb-2" style={{ fontSize: '0.65rem', lineHeight: '1.3' }}>{upgrade.description}</p>
       <p className="text-xs text-gray-500 mt-auto italic capitalize">{upgrade.tier}</p>

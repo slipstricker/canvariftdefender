@@ -33,9 +33,10 @@ export const submitScore = async (newEntry: LeaderboardEntry, isAdminPlayer: boo
         const updatedLeaderboard = [...existingEntries, newEntry]
           .sort((a, b) => {
             if (b.wave !== a.wave) {
-              return b.wave - a.wave;
+              return b.wave - a.wave; // Higher wave is better
             }
-            return a.time - b.time;
+            // If waves are the same, higher time is better (descending order of time)
+            return b.time - a.time; 
           })
           .slice(0, MAX_LEADERBOARD_ENTRIES);
 

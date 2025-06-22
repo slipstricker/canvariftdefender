@@ -1,16 +1,16 @@
 
-
-import { Player, MouseState, Projectile, ProjectileEffectType, Enemy, StaffItem } from '../types';
+import { Player, MouseState, Projectile, ProjectileEffectType, Enemy, StaffItem, ParticleType } from '../types';
 import {
   PLAYER_PROJECTILE_COLOR, CANVAS_WIDTH, CANVAS_HEIGHT, PROJECTILE_ART_WIDTH,
   PROJECTILE_ART_HEIGHT, SPRITE_PIXEL_SIZE, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT
 } from '../constants';
-import { ALL_STAFFS_SHOP } from './shopLogic'; // Added import for ALL_STAFFS_SHOP
-import { hexToRgba } from './canvasArt'; // Added import
+import { ALL_STAFFS_SHOP, DEFAULT_STAFF_ID } from './shopLogic'; 
+import { hexToRgba } from './utils'; 
 
 const RAINBOW_STAFF_EFFECT_TYPES: ProjectileEffectType[] = ['trident', 'boomstaff', 'thunder_staff', 'emerald_homing', 'frozen_tip', 'shadow_bolt'];
 const TRIDENT_SPREAD_ANGLE = 0.25; 
 const STAFF_VISUAL_EFFECTIVE_LENGTH_FACTOR = 0.85; 
+const MAX_HOMING_TURN_RATE_RAD_PER_SEC = Math.PI * 4; // Max turn rate at homingStrength 1 (e.g., 720 deg/sec)
 
 
 interface CreatePlayerProjectilesResult {
@@ -24,31 +24,37 @@ export function createPlayerProjectiles(
   canvasRect: { left: number, top: number, width: number, height: number } | null,
   internalCanvasWidth: number,
   internalCanvasHeight: number,
-  playSound: (soundName: string, volume?: number) => void
+  playSound: (soundName: string, volume?: number) => void,
+  createParticleEffectFn: (x: number, y: number, count: number, color: string, sizeVariance?: number, speed?: number, life?: number, type?: ParticleType) => void
 ): CreatePlayerProjectilesResult {
   const newProjectiles: Projectile[] = [];
   let newLightningBoltsTrigger: { mouseX: number, mouseY: number } | undefined = undefined;
 
   if (!canvasRect) return { projectiles: newProjectiles, newLightningBoltsTrigger };
 
-  const playerBodyHeight = player.height * 0.7;
-  const playerBodyYOffset = player.height - playerBodyHeight;
-  const handOffsetFactorX = player.facingDirection === 'right' ? 0.65 : 0.35; 
+  // Calculate hand position more accurately based on player model
+  const playerBodyHeight = player.height * 0.7; // Assuming body is 70% of total height
+  const playerBodyYOffset = player.height - playerBodyHeight; // Offset from top of player sprite to top of body
+  const handOffsetFactorX = player.facingDirection === 'right' ? 0.65 : 0.35; // Hand slightly in front based on facing
   const handGlobalX = player.x + player.width * handOffsetFactorX;
-  const handGlobalY = player.y + playerBodyYOffset + playerBodyHeight * 0.5;
+  const handGlobalY = player.y + playerBodyYOffset + playerBodyHeight * 0.5; // Mid-body height
 
+  // Convert mouse coordinates from screen space to internal canvas space
   const internalTargetMouseX = (mouse.x - canvasRect.left) * (internalCanvasWidth / canvasRect.width);
   const internalTargetMouseY = (mouse.y - canvasRect.top) * (internalCanvasHeight / canvasRect.height);
 
+  // Angle from hand to mouse for staff visual rotation
   const staffAimAngle = Math.atan2(
     internalTargetMouseY - handGlobalY,
     internalTargetMouseX - handGlobalX
   );
 
-  const staffVisualLength = player.height * STAFF_VISUAL_EFFECTIVE_LENGTH_FACTOR;
+  // Projectile spawn point at the tip of the staff
+  const staffVisualLength = player.height * STAFF_VISUAL_EFFECTIVE_LENGTH_FACTOR; // Staff length relative to player height
   const projectileSpawnX = handGlobalX + staffVisualLength * Math.cos(staffAimAngle);
   const projectileSpawnY = handGlobalY + staffVisualLength * Math.sin(staffAimAngle);
 
+  // Angle from projectile spawn point to mouse for projectile trajectory
   const baseAngle = Math.atan2(
     internalTargetMouseY - projectileSpawnY,
     internalTargetMouseX - projectileSpawnX
@@ -64,7 +70,8 @@ export function createPlayerProjectiles(
   
   let finalPierceCount = player.projectilePierceCount || 0;
 
-  let finalDamage = playerAverageBaseDamage; // Start with average damage
+  // Start with player's current average damage, may be modified by staff
+  let finalDamage = playerAverageBaseDamage; 
   let finalIsHoming = isHomingFromUpgrades;
   let finalHomingStrength = homingStrengthFromUpgrades;
   
@@ -78,11 +85,12 @@ export function createPlayerProjectiles(
   let projectileOnHitExplosionConfig: Projectile['onHitExplosionConfig'] = undefined;
 
 
-  const activeStaffId = player.selectedStaffId;
-  const currentStaffItem = ALL_STAFFS_SHOP.find(s => s.id === activeStaffId) || ALL_STAFFS_SHOP[0];
+  const activeStaffId = player.selectedStaffId || DEFAULT_STAFF_ID;
+  const currentStaffItem = ALL_STAFFS_SHOP.find(s => s.id === activeStaffId) || ALL_STAFFS_SHOP.find(s => s.id === DEFAULT_STAFF_ID)!;
   let finalProjectileColor = currentStaffItem.projectileColor;
   let finalGlowEffectColor = currentStaffItem.projectileGlowColor;
   
+  // Determine staff effect and projectile properties based on active staff
   if (activeStaffId === 'staff_emerald') staffEffectForShot = 'emerald_homing';
   else if (activeStaffId === 'staff_trident') staffEffectForShot = 'trident';
   else if (activeStaffId === 'staff_boom') staffEffectForShot = 'boomstaff';
@@ -90,42 +98,46 @@ export function createPlayerProjectiles(
   else if (activeStaffId === 'staff_frozen_tip') staffEffectForShot = 'frozen_tip';
   else if (activeStaffId === 'staff_rainbow') {
     staffEffectForShot = RAINBOW_STAFF_EFFECT_TYPES[Math.floor(Math.random() * RAINBOW_STAFF_EFFECT_TYPES.length)];
+    // Update color based on the randomly chosen effect's staff
     const effectStaff = ALL_STAFFS_SHOP.find(s => 
         (s.id === 'staff_trident' && staffEffectForShot === 'trident') ||
         (s.id === 'staff_boom' && staffEffectForShot === 'boomstaff') ||
         (s.id === 'staff_thunder' && staffEffectForShot === 'thunder_staff') ||
         (s.id === 'staff_emerald' && staffEffectForShot === 'emerald_homing') ||
         (s.id === 'staff_frozen_tip' && staffEffectForShot === 'frozen_tip') ||
-        (s.id === 'staff_shadow_visual' && staffEffectForShot === 'shadow_bolt')
-    ) || currentStaffItem;
+        (s.id === 'staff_shadow_visual' && staffEffectForShot === 'shadow_bolt') // Assuming shadow_visual corresponds to shadow_bolt effect
+    ) || currentStaffItem; // Fallback to rainbow staff's own color if no match
     finalProjectileColor = effectStaff.projectileColor;
     finalGlowEffectColor = effectStaff.projectileGlowColor;
 
   } 
-  else if (activeStaffId === 'staff_fire_visual') staffEffectForShot = 'boomstaff'; 
-  else if (activeStaffId === 'staff_ice_visual') staffEffectForShot = 'frozen_tip'; 
-  else if (activeStaffId === 'staff_shadow_visual') staffEffectForShot = 'shadow_bolt'; 
+  // Visual overrides (mainly for color, effect type drives mechanics)
+  else if (activeStaffId === 'staff_fire_visual') staffEffectForShot = 'boomstaff'; // Fire visual -> boomstaff mechanics
+  else if (activeStaffId === 'staff_ice_visual') staffEffectForShot = 'frozen_tip'; // Ice visual -> frozen_tip mechanics
+  else if (activeStaffId === 'staff_shadow_visual') staffEffectForShot = 'shadow_bolt'; // Shadow visual -> shadow_bolt mechanics
 
+
+  // Apply specific mechanics for chosen effect
   switch (staffEffectForShot) {
     case 'emerald_homing':
-      if (!isHomingFromUpgrades) {
+      if (!isHomingFromUpgrades) { // Only apply staff's homing if player doesn't have seeker rounds
         finalIsHoming = true;
-        finalHomingStrength = 0.1;
+        finalHomingStrength = 0.1; // Staff's specific homing strength
       }
-      // Use player's base average damage for this calculation
-      finalDamage = ((player.baseMinProjectileDamage + player.baseMaxProjectileDamage) / 2) * 0.5;
+      // Emerald staff has reduced damage
+      finalDamage = ((player.baseMinProjectileDamage + player.baseMaxProjectileDamage) / 2) * 0.5; // Uses player's BASE damage for this calc
       shootSound = '/assets/sounds/player_shoot_magic_01.wav';
       shootVolume = 0.45;
       break;
     case 'boomstaff':
-      projectileExplosionRadius = 60 * SPRITE_PIXEL_SIZE;
+      projectileExplosionRadius = 60 * SPRITE_PIXEL_SIZE; // Example radius
       projectileOnHitExplosionConfig = { chance: 0.3, maxTargets: 4, damageFactor: 0.75 };
-      projectileIsExplosiveForOffScreen = false; 
+      projectileIsExplosiveForOffScreen = false; // Does not explode when going off-screen by default
       shootSound = '/assets/sounds/projectile_fire_shoot_01.wav';
       shootVolume = 0.6;
       break;
     case 'frozen_tip':
-      finalPierceCount += 3;
+      finalPierceCount += 3; // Add pierce from staff
       shootSound = '/assets/sounds/projectile_ice_shoot_01.wav';
       shootVolume = 0.55;
       break;
@@ -138,6 +150,7 @@ export function createPlayerProjectiles(
       shootVolume = 0.6;
       break;
     case 'thunder_staff':
+      // Standard projectile, additional effect (lightning bolt) handled outside
       shootSound = '/assets/sounds/player_shoot_magic_01.wav'; 
       shootVolume = 0.5;
       break;
@@ -156,31 +169,35 @@ export function createPlayerProjectiles(
         owner: 'player',
         color: color, 
         glowEffectColor: glowColor,
-        hitsLeft: 1 + currentPierce,
+        hitsLeft: 1 + currentPierce, // Base hit + pierce count
         isHoming: currentIsHoming,
-        homingTargetId: null,
+        homingTargetId: null, // Initialized to null
         homingStrength: currentHomingStrength,
-        initialVx: Math.cos(angle) * speed,
+        initialVx: Math.cos(angle) * speed, // Store for some homing types
         initialVy: Math.sin(angle) * speed,
         isExplosive: projectileIsExplosiveForOffScreen, 
         explosionRadius: projectileExplosionRadius,     
         onHitExplosionConfig: projectileOnHitExplosionConfig, 
         appliedEffectType: individualProjectileEffectType,
-        damagedEnemyIDs: [],
-        draw: () => {},
-        trailSpawnTimer: 0.01 + Math.random() * 0.02,
+        damagedEnemyIDs: [], // Initialize empty
+        draw: () => {}, // Placeholder, drawing handled by renderer
+        trailSpawnTimer: 0.01 + Math.random() * 0.02, // For particle trails
     };
   };
 
+  // Create projectiles based on effect type
   if (staffEffectForShot === 'trident') {
-    const tridentDamage = finalDamage * 0.6; 
+    const tridentDamage = finalDamage * 0.6; // Trident shots do less damage each
     newProjectiles.push(createActualProjectile(baseAngle, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
     newProjectiles.push(createActualProjectile(baseAngle - TRIDENT_SPREAD_ANGLE, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
     newProjectiles.push(createActualProjectile(baseAngle + TRIDENT_SPREAD_ANGLE, 'trident', tridentDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
   } else if (staffEffectForShot === 'thunder_staff') {
+    // Standard projectile
     newProjectiles.push(createActualProjectile(baseAngle, 'standard', finalDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
+    // Trigger lightning bolt effect (App.tsx will handle this via gameContext)
     newLightningBoltsTrigger = { mouseX: internalTargetMouseX, mouseY: internalTargetMouseY };
   } else {
+    // Single projectile for other effects
     newProjectiles.push(createActualProjectile(baseAngle, staffEffectForShot, finalDamage, finalPierceCount, finalIsHoming, finalHomingStrength, finalProjectileColor, finalGlowEffectColor));
   }
 
@@ -191,9 +208,9 @@ export function createPlayerProjectiles(
 export function updateProjectiles(
   projectiles: Projectile[],
   deltaTime: number,
-  isPlayerProjectileList: boolean,
-  enemies: Readonly<Enemy[]>,
-  createParticleEffectFn: (x: number, y: number, count: number, color: string, sizeVariance?: number, speed?: number, life?: number) => void,
+  isPlayerProjectileList: boolean, // To differentiate logic if needed, e.g., homing only for player
+  enemies: Readonly<Enemy[]>, // Needed for player projectile homing
+  createParticleEffectFn: (x: number, y: number, count: number, color: string, sizeVariance?: number, speed?: number, life?: number, type?: ParticleType) => void,
   handleExplosionFn: (projectile: Projectile, maxTargets?: number, damageFactorOverride?: number) => void,
   canvasWidth: number,
   canvasHeight: number
@@ -202,15 +219,18 @@ export function updateProjectiles(
     let newVx = p.vx ?? 0;
     let newVy = p.vy ?? 0;
 
+    // Homing logic for player projectiles
     if (isPlayerProjectileList && p.isHoming && p.homingStrength && enemies.length > 0) {
         let target: Enemy | null = null;
+        // If already has a target, check if it's still valid (alive)
         if (p.homingTargetId) {
             target = enemies.find(e => e.id === p.homingTargetId && e.hp > 0) || null;
         }
+        // If no target or target is invalid, find a new one
         if (!target) { 
             let closestDistSq = Infinity;
             enemies.forEach(enemy => {
-                if (enemy.hp > 0) {
+                if (enemy.hp > 0) { // Only target living enemies
                     const projCenterX = p.x + p.width / 2;
                     const projCenterY = p.y + p.height / 2;
                     const enemyCenterX = enemy.x + enemy.width / 2;
@@ -223,46 +243,56 @@ export function updateProjectiles(
                     }
                 }
             });
-            if (target) p.homingTargetId = target.id;
+            if (target) p.homingTargetId = target.id; // Assign new target
         }
 
+        // If a valid target exists, adjust projectile velocity
         if (target) { 
-            const angleToTarget = Math.atan2(
-                (target.y + target.height / 2) - (p.y + p.height / 2),
-                (target.x + target.width / 2) - (p.x + p.width / 2)
-            );
+            const targetX = target.x + target.width / 2;
+            const targetY = target.y + target.height / 2;
+            const projectileX = p.x + p.width / 2;
+            const projectileY = p.y + p.height / 2;
+
+            const dirX = targetX - projectileX;
+            const dirY = targetY - projectileY;
+            
             const currentAngle = Math.atan2(newVy, newVx);
+            const angleToTarget = Math.atan2(dirY, dirX);
+
             let angleDiff = angleToTarget - currentAngle;
             while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
             while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
 
-            const turnRate = p.homingStrength * 2 * Math.PI * deltaTime; 
-            const turnAmount = Math.max(-turnRate, Math.min(turnRate, angleDiff));
-
-            const newAngle = currentAngle + turnAmount;
-            const speed = Math.sqrt(newVx * newVx + newVy * newVy);
+            const actualTurnRateRadPerSec = MAX_HOMING_TURN_RATE_RAD_PER_SEC * p.homingStrength;
+            const turnAmountThisFrame = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), actualTurnRateRadPerSec * deltaTime);
+            
+            const newAngle = currentAngle + turnAmountThisFrame;
+            const speed = Math.sqrt(newVx * newVx + newVy * newVy); // Maintain current speed
             newVx = Math.cos(newAngle) * speed;
             newVy = Math.sin(newAngle) * speed;
         }
     }
     
+    // Particle trail logic for player projectiles
     if (isPlayerProjectileList && p.trailSpawnTimer !== undefined) {
       p.trailSpawnTimer -= deltaTime;
       if (p.trailSpawnTimer <= 0) {
-          let trailColor = p.glowEffectColor || p.color; 
+          let trailColor = p.glowEffectColor || p.color; // Use glow color if available for better visibility
+          // Customize trail color based on effect type
           if (p.appliedEffectType === 'frozen_tip') trailColor = p.glowEffectColor || '#AED6F1';
           else if (p.appliedEffectType === 'emerald_homing') trailColor = p.glowEffectColor ||'#2ECC71';
           
           createParticleEffectFn(
-              p.x + p.width / 2,
+              p.x + p.width / 2, // Emit from center of projectile
               p.y + p.height / 2,
-              1, 
-              hexToRgba(trailColor, 0.4 + Math.random() * 0.3), 
-              SPRITE_PIXEL_SIZE * 1.5, 
-              15 * SPRITE_PIXEL_SIZE,  
-              0.40 + Math.random() * 0.20 
+              1, // Number of particles per trail emission
+              hexToRgba(trailColor, 0.4 + Math.random() * 0.3), // Semi-transparent, varied alpha
+              SPRITE_PIXEL_SIZE * 1.5, // Base size of trail particles
+              15 * SPRITE_PIXEL_SIZE,  // Speed of trail particles (usually slower, moving away)
+              0.40 + Math.random() * 0.20, // Lifespan of trail particles
+              'projectile_trail_cosmic' // Specific particle type for trails
           );
-          p.trailSpawnTimer = 0.03 + Math.random() * 0.04; 
+          p.trailSpawnTimer = 0.03 + Math.random() * 0.04; // Reset timer for next emission
       }
     }
 
@@ -274,19 +304,23 @@ export function updateProjectiles(
       vy: newVy,
     };
   }).filter(p => {
+    // Check if projectile is off-screen
     const isOnScreen = p.x > -p.width && p.x < canvasWidth && p.y > -p.height && p.y < canvasHeight;
     
     if (!isOnScreen) { 
+        // If player projectile is explosive and goes off-screen, trigger explosion
         if (p.owner === 'player' && p.isExplosive && p.explosionRadius) {
-            handleExplosionFn(p); 
+            handleExplosionFn(p); // Call the passed-in explosion handler
         }
-        return false; 
+        return false; // Remove projectile if off-screen
     }
 
+    // For player projectiles, check if they have hits left
     if (p.owner === 'player') {
         return (p.hitsLeft !== undefined && p.hitsLeft > 0);
     }
     
+    // Enemy projectiles are removed if off-screen (handled above) or on collision (handled in collisionLogic)
     return true; 
   });
 }

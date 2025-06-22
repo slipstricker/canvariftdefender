@@ -15,6 +15,7 @@ interface UpgradeSelectionScreenProps {
   onRequestReroll: () => void;
   panelBaseClass: string;
   commonButtonClass: string;
+  isBossRewardMode?: boolean; // New prop for boss reward
 }
 
 const MAX_TOTAL_SPIN_DURATION_MS = 6000;
@@ -32,6 +33,7 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
   onRequestReroll,
   panelBaseClass,
   commonButtonClass,
+  isBossRewardMode,
 }) => {
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [animationDisplayUpgrades, setAnimationDisplayUpgrades] = useState<Upgrade[]>([]);
@@ -57,7 +59,7 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
       return pool[Math.floor(Math.random() * pool.length)];
     }
     // Fallback if all pools are empty
-    return choicesOffered.length > 0 ? choicesOffered[0] : ({ id: 'dummy', name: 'Carregando...', description: '...', tier: 'comum', apply: () => {} } as Upgrade);
+    return choicesOffered.length > 0 ? choicesOffered[0] : ({ id: 'dummy', numericId: '000', name: 'Carregando...', description: '...', tier: 'comum', apply: () => {} } as Upgrade);
   }, [availableUpgradePool, initialUpgradePool, choicesOffered]);
 
   const clearAnimationTimers = useCallback(() => {
@@ -97,14 +99,14 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
             return getRandomUpgradeForSpin(); // Spin non-locked cards
           })
         );
-      }, FAST_SPIN_INTERVAL_SPEED_MS);
+      }, FAST_SPIN_INTERVAL_SPEED_MS) as unknown as number;
 
       // Schedule sequential stops for each reel
       const timePerReelSlotMs = MAX_TOTAL_SPIN_DURATION_MS / numReels;
 
       for (let i = 0; i < numReels; i++) {
         const stopTimeForThisReel = (i + 1) * timePerReelSlotMs;
-        const timerId = setTimeout(() => {
+        const timerId = window.setTimeout(() => {
           setAnimationDisplayUpgrades(prev => {
             const newDisplays = [...prev];
             newDisplays[i] = choicesOffered[i];
@@ -122,18 +124,18 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
               masterSpinIntervalRef.current = null;
             }
             setIsAnimating(false);
-            if (localPicksRemainingRef.current <= 0 && choicesOffered.length > 0) { // Check if picks were somehow made or if it was 0
+            if (localPicksRemainingRef.current <= 0 && choicesOffered.length > 0) { 
                  // onAllPicksMade might be called too early if picksAllowed was already 0
                  // This ensures it's called after animation if needed.
             }
           }
-        }, stopTimeForThisReel);
+        }, stopTimeForThisReel) as unknown as number; // Cast to number
         animationTimerRefs.current.push(timerId);
       }
 
       // Overall safeguard timeout
       const safeguardTime = MAX_TOTAL_SPIN_DURATION_MS + 500; // A little buffer
-      overallAnimationTimeoutRef.current = setTimeout(() => {
+      overallAnimationTimeoutRef.current = window.setTimeout(() => {
         if (isAnimatingRef.current) { // Check ref to see if animation is still supposed to be running
           console.warn("Upgrade animation safeguard triggered.");
           clearAnimationTimers();
@@ -141,7 +143,7 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
           setAnimationDisplayUpgrades(choicesOffered);
           setReelLockStates(new Array(numReels).fill(true));
         }
-      }, safeguardTime);
+      }, safeguardTime) as unknown as number;
 
     } else { // No choices offered
       clearAnimationTimers();
@@ -177,7 +179,9 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
   const currentChoicesToRender = isAnimating ? animationDisplayUpgrades : choicesOffered;
 
   let titleText = "Sorteando Melhorias...";
-  if (!isAnimating) {
+  if (isBossRewardMode) {
+    titleText = "Recompensa do Chefe! Potencialize uma Habilidade Existente:";
+  } else if (!isAnimating) {
     if (choicesOffered.length === 0) {
       titleText = "Nenhuma melhoria cósmica disponível.";
     } else if (localPicksRemaining > 1) {
@@ -188,6 +192,7 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
       titleText = "Melhorias Selecionadas!";
     }
   }
+
 
   return (
     <div className={`${panelBaseClass} justify-center text-center`} role="dialog" aria-labelledby="upgradeSelectionTitle">
@@ -211,7 +216,7 @@ const UpgradeSelectionScreen: React.FC<UpgradeSelectionScreenProps> = ({
         !isAnimating && <p className="text-gray-400 text-sm">Aguardando...</p>
       )}
 
-      {!isAnimating && choicesOffered.length > 0 && localPicksRemaining > 0 && player.selectedHatId === 'hat_fedora' && player.canFreeRerollUpgrades && !player.usedFreeRerollThisLevelUp && (
+      {!isAnimating && !isBossRewardMode && choicesOffered.length > 0 && localPicksRemaining > 0 && player.selectedHatId === 'hat_fedora' && player.canFreeRerollUpgrades && !player.usedFreeRerollThisLevelUp && (
         <button 
           onClick={() => {
             clearAnimationTimers(); // Stop any pending animations before rerolling

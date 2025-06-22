@@ -56,7 +56,7 @@ export interface Player extends GameObject {
   lastShotTime: number;
   upgrades: string[];
   lifeSteal: number; // 0-1
-  revives: number;
+  revives: number; // Immortal revives
   appraisalChoices: number; // Number of upgrade choices
   onGround: boolean;
   canDoubleJump?: boolean; // Now a permanent skill
@@ -105,16 +105,15 @@ export interface Player extends GameObject {
   selectedHatId: string | null; 
   selectedStaffId: string | null;
   coins: number;
-  // purchasedPermanentSkillIds: string[]; // For Dash, Double Jump, etc. - Replaced
   purchasedPermanentSkills: Record<string, { level: number }>; // e.g. { 'skill_dash': { level: 2 } }
   xpBonus: number; // e.g. 1.1 for +10%
   coinDropBonus: number; // e.g. 0.02 for +2% (additive to base 10% chance)
 
 
   // Hat/Staff Effects
-  challengerHatMoreEnemies?: boolean; // For Challenger's Hat
-  canFreeRerollUpgrades?: boolean; // For Fedora
-  usedFreeRerollThisLevelUp?: boolean; // For Fedora
+  challengerHatMoreEnemies?: boolean; 
+  canFreeRerollUpgrades?: boolean; 
+  usedFreeRerollThisLevelUp?: boolean; 
 
   // Particle effect flags
   justDoubleJumped?: boolean;
@@ -130,127 +129,124 @@ export interface Player extends GameObject {
   dashTimer?: number;
   dashSpeedValue?: number;
   dashDirection?: 'left' | 'right';
-  dashInvincibilityDuration?: number; // Duration of invincibility granted by dash
+  dashInvincibilityDuration?: number; 
 }
 
 export type EnemyType = 'standard' | 'boss' | 'splitter' | 'miniSplitter';
-export type AlienVisualVariant = 'cyclops' | 'green_classic' | 'spiky' | 'multi_tentacle' | 'three_eyed_boss' | 'cosmic_energy_orb' | 'nebula_serpent'; // Added new variants for space theme
+export type AlienVisualVariant = 'cyclops' | 'green_classic' | 'spiky' | 'multi_tentacle' | 'three_eyed_boss' | 'cosmic_energy_orb' | 'nebula_serpent'; 
 
 export interface Enemy extends GameObject {
-  id: string; // Unique identifier for each enemy instance
+  id: string; 
   hp: number;
   maxHp: number;
   damage: number;
   expValue: number;
   isFollowingPlayer: boolean;
-  shootCooldown: number; // Base cooldown, can be modified by effects like chill
+  shootCooldown: number; 
   lastShotTime: number;
-  color: string; // Base color for 'standard' and 'boss', or primary color for palette-drawn sprites. May be less used with specific canvas designs.
-  speed: number; // Base speed, can be modified by effects like chill
-  onDeathEffects?: (() => void)[]; // Kept for potential generic effects, splitter logic handled in App.tsx
-  slowFactor: number; // 0-1, 1 is normal speed (used for other slow types, chill uses its own factors)
+  color: string; 
+  speed: number; 
+  onDeathEffects?: (() => void)[]; 
+  slowFactor: number; 
   enemyType: EnemyType;
-  visualVariant?: AlienVisualVariant; // For distinct canvas-drawn alien looks
-  inFuryMode?: boolean; // Indicates if the boss is in fury mode
+  visualVariant?: AlienVisualVariant; 
+  inFuryMode?: boolean; 
   statusEffects: AppliedStatusEffect[];
 
-  // Boss specific anti-vibration/stuck logic
   lastAppliedVx?: number;
   directionChangeCounter?: number;
   isReturningToCenter?: boolean;
   returnToCenterTimer?: number;
 
-  // Boss minion summoning
   summonedMinionIds?: string[];
-  minionRespawnTimer?: number; // Current cooldown timer for normal mode
-  minionRespawnCooldown?: number; // Configured cooldown duration for normal mode
-  furyMinionSpawnCooldownTimer?: number; // Current cooldown timer for fury mode
+  minionRespawnTimer?: number; 
+  minionRespawnCooldown?: number; 
+  furyMinionSpawnCooldownTimer?: number; 
   maxMinionsNormal?: number;
   maxMinionsFury?: number;
-  showMinionWarningTimer?: number; // Timer for "Spawning in X..." message
-  showMinionSpawnedMessageTimer?: number; // Timer for "Minions spawned!" message
-  isSummonedByBoss?: boolean; // Flag for minions to identify them
+  showMinionWarningTimer?: number; 
+  showMinionSpawnedMessageTimer?: number; 
+  isSummonedByBoss?: boolean; 
 
-  distanceToExplosion?: number; // Used temporarily in explosion logic
+  distanceToExplosion?: number; 
 }
 
-export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment'; // Added new space themed types
+export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment'; 
 
 export interface Projectile extends GameObject {
-  damage: number; // For player projectiles, this will be the average damage. Actual damage rolled on hit.
+  damage: number; 
   owner: 'player' | 'enemy';
-  color: string; // Base color of the projectile
-  glowEffectColor?: string; // Optional glow color if the base color is dark
-  hitsLeft?: number; // For piercing, includes initial hit. 0 means destroyed.
-  // isExploded?: boolean; // Deprecated, explosion handled differently
-  // Homing properties
+  color: string; 
+  glowEffectColor?: string; 
+  hitsLeft?: number; 
   isHoming?: boolean;
   homingTargetId?: string | null;
-  homingStrength?: number; // Factor determining turn rate
-  initialVx?: number; // Store initial velocity for some homing calcs
+  homingStrength?: number; 
+  initialVx?: number; 
   initialVy?: number;
   
-  // Properties for explosions
-  isExplosive?: boolean; // True if it explodes at end-of-life / off-screen.
-  explosionRadius?: number; // Radius for any type of explosion this projectile might cause.
-  onHitExplosionConfig?: { // Configuration for explosion specifically on enemy hit.
-    chance: number;        // Probability (0-1) of exploding on hit.
-    maxTargets: number;    // Maximum number of enemies affected by the on-hit explosion.
-    damageFactor: number;  // Multiplier of projectile's base damage for the explosion.
+  isExplosive?: boolean; 
+  explosionRadius?: number; 
+  onHitExplosionConfig?: { 
+    chance: number;        
+    maxTargets: number;    
+    damageFactor: number;  
   };
 
-  appliedEffectType: ProjectileEffectType; // Made mandatory
-  trailSpawnTimer?: number; // Timer for spawning trail particles
-  damagedEnemyIDs?: string[]; // Tracks IDs of enemies already damaged by this projectile
-  trailPoints?: { x: number, y: number, life: number, initialLife: number, size: number }[]; // Added trailPoints for advanced trails
+  appliedEffectType: ProjectileEffectType; 
+  trailSpawnTimer?: number; 
+  damagedEnemyIDs?: string[]; 
+  trailPoints?: { x: number, y: number, life: number, initialLife: number, size: number }[]; 
 }
 
 export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic' | 'coin_pickup' | 'dash_trail';
 
 export interface Particle extends GameObject {
   life: number;
-  initialLife?: number; // For scaling alpha/size
+  initialLife?: number; 
   color: string;
-  particleType?: ParticleType; // For specific behaviors or appearances
+  particleType?: ParticleType; 
   rotation?: number;
   angularVelocity?: number;
 }
 
 export interface Platform {
-  id: string; // Unique identifier
+  id: string; 
   x: number;
   y: number;
   width: number;
   height: number;
-  originalWidth: number; // Max width for dynamic platforms
+  originalWidth: number; 
   isVisible: boolean;
-  isBlinkingOut: boolean; // True if platform is currently fading out
-  blinkTimer: number; // Timer for visibility state changes or duration
-  currentAlpha: number; // For fade in/out effects
+  isBlinkingOut: boolean; 
+  blinkTimer: number; 
+  currentAlpha: number; 
 }
 
 export interface Upgrade {
   id: string;
+  numericId: string; // New field for cheat system
   name: string;
   description: string;
-  apply: (player: Player, game: any) => void; // 'any' for game context to avoid circular deps. Can be improved.
-  tier: 'comum' | 'incomum' | 'raro'; // Translated tiers
-  maxApplications?: number; // How many times this can be picked
+  apply: (player: Player, game: any) => void; 
+  tier: 'comum' | 'incomum' | 'raro'; 
+  maxApplications?: number; 
 }
 
 export enum GameState {
-  StartMenu,        // MenuInicial
-  CharacterSelection, // SelecaoPersonagem
-  Shop,             // Loja de Artefatos
-  CosmeticSelectionModal, // Modal de Seleção de Cosméticos
-  Playing,          // Jogando
-  ChoosingUpgrade,  // EscolhendoMelhoria
-  GameOver,         // FimDeJogo
-  Paused,           // Pausado
-  SkillsInfo,       // InfoHabilidades
-  Leaderboard,      // PlacarLideres
-  DebugMenu,        // Formerly AdminMenu
-  ActiveSkillsDisplay, // ExibirHabilidadesAtivas
+  StartMenu,        
+  CharacterSelection, 
+  Shop,             
+  CosmeticSelectionModal, 
+  Playing,          
+  ChoosingUpgrade,  
+  RevivePending, 
+  GameOver,         
+  Paused,           
+  SkillsInfo,       
+  Leaderboard,      
+  DebugMenu,        
+  ActiveSkillsDisplay, 
 }
 
 export interface Keys {
@@ -272,7 +268,7 @@ export interface ActiveLightningBolt {
   startY: number;
   endX: number;
   endY: number;
-  life: number; // seconds
+  life: number; 
   initialLife: number;
 }
 
@@ -285,14 +281,13 @@ export interface LeaderboardEntry {
 
 export interface AdminConfig {
   isAdminEnabled: boolean;
-  selectedSkills: Record<string, number>; // Key: upgrade.id, Value: count
+  selectedSkills: Record<string, number>; 
   startWave: number;
   xpMultiplier?: number;
   damageMultiplier?: number;
-  defenseBoost?: number; // Represents a flat percentage boost, e.g., 0.1 for +10%
+  defenseBoost?: number; 
 }
 
-// Used for the state that prepares data for rendering acquired skills UI
 export interface DisplayedSkillInfo {
   id: string;
   name: string;
@@ -319,7 +314,7 @@ export interface CosmeticItem {
   id: string;
   name: string;
   description: string;
-  unlockWave?: CosmeticUnlockWave; // Made optional for shop-only items
+  unlockWave?: CosmeticUnlockWave; 
   price: number; 
   type: 'hat' | 'staff';
   spriteKey: string; 
@@ -346,17 +341,17 @@ export interface SkillLevel {
   price: number;
   effectDescription: string;
   applyEffect: (player: Player) => void;
-  // Specific values for UI display, actual application happens in applyEffect
   dashCooldown?: number;
-  xpBonus?: number; // e.g., 0.1 for +10%
-  coinDropBonus?: number; // e.g., 0.02 for +2%
+  xpBonus?: number; 
+  coinDropBonus?: number; 
 }
 
 export interface LeveledSkill {
   id: `skill_${string}`;
+  numericId: string; // New field for cheat system
   name: string;
-  icon: string; // Icon for the shop UI
-  baseDescription: string; // General description
+  icon: string; 
+  baseDescription: string; 
   type: 'permanent_skill';
   levels: SkillLevel[];
 }
@@ -365,7 +360,6 @@ export interface LeveledSkill {
 export interface CosmeticUnlocksData {
   purchasedItemIds: string[];
   playerCoins: number;
-  // purchasedPermanentSkillIds: string[]; // Replaced
   purchasedPermanentSkills: Record<string, { level: number }>;
 }
 
@@ -379,9 +373,8 @@ export interface Star {
   x: number;
   y: number;
   size: number;
-  opacity: number;
-  twinkleSpeed: number;
   baseOpacity: number;
+  twinkleSpeed: number;
 }
 
 export interface Nebula {
@@ -389,8 +382,8 @@ export interface Nebula {
   y: number;
   radiusX: number;
   radiusY: number;
-  color1: string; 
-  color2: string; 
+  color1: string;
+  color2: string;
   opacity: number;
   rotation: number;
 }
@@ -398,5 +391,49 @@ export interface Nebula {
 export interface CoinDrop extends GameObject {
   id: string;
   value: number;
-  life: number; // Time before it disappears, or Infinity
+  life: number; 
+  initialLife: number;
+  vy: number; 
+  vx: number; 
+  onGround: boolean;
+}
+
+export type WaveStatus = 'intermissao' | 'surgindo' | 'lutando';
+
+export interface CenterScreenMessage {
+    text: string;
+    duration: number; 
+    initialDuration: number; 
+    color?: string;
+    fontSize?: number;
+}
+
+export interface ScreenShakeState {
+  active: boolean;
+  intensity: number;
+  duration: number; 
+  startTime: number; 
+}
+
+export interface BorderFlashState {
+  active: boolean;
+  duration: number; 
+  startTime: number; 
+}
+
+// This constant is defined in constants.ts but used in App.tsx directly.
+// Ideally, App.tsx should import it from constants.ts.
+// Adding it here for type completeness if directly used from App.tsx in a way that bypasses constants.ts import.
+export const BOSS_FURY_MODE_HP_THRESHOLD = 0.25;
+
+// Cheat System specific types
+export interface CheatCode { // Specifically for skill cheats
+  skillNumericId: string; // The 3-digit numeric ID
+  level: number; // 1 or 2 typically
+}
+
+export interface ParsedNickname {
+  baseNickname: string;
+  skillCheats: CheatCode[]; // Array of skill cheats
+  coinCheatAmount: number;   // Total amount from coin cheats, defaults to 0
 }

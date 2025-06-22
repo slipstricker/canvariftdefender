@@ -1,5 +1,4 @@
 
-
 import { Upgrade, Player, Enemy } from '../types';
 import { PLAYER_INITIAL_ATTACK_SPEED, PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_CRIT_CHANCE, PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE, PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE } from '../constants';
 import { ALL_STAFFS_SHOP, DEFAULT_STAFF_ID } from './shopLogic';
@@ -7,6 +6,7 @@ import { ALL_STAFFS_SHOP, DEFAULT_STAFF_ID } from './shopLogic';
 export const UPGRADES: Upgrade[] = [
   {
     id: 'catalyst',
+    numericId: '001',
     name: 'Catalisador',
     description: 'Dano do Projétil +5. Acumula infinitamente.',
     tier: 'comum',
@@ -17,6 +17,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'growth',
+    numericId: '002',
     name: 'Crescimento',
     description: 'HP Máx. +10. Acumula infinitamente.',
     tier: 'comum',
@@ -24,6 +25,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'resonance',
+    numericId: '003',
     name: 'Ressonância',
     description: 'Vel. de Ataque +12%. Máx +100% (aprox. 6 aplicações).',
     tier: 'comum',
@@ -35,6 +37,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'swift',
+    numericId: '004',
     name: 'Rapidez',
     description: 'Vel. de Movimento +20%. Máx +150% (aprox. 5 aplicações).',
     tier: 'comum',
@@ -46,6 +49,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'eyesight',
+    numericId: '005',
     name: 'Visão Aguçada',
     description: 'Chance Crítica +5%. Máx 40% (7 aplicações da base de 5%).',
     tier: 'comum',
@@ -57,6 +61,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'renew',
+    numericId: '006',
     name: 'Renovar',
     description: 'Cura para HP Máx.',
     tier: 'incomum',
@@ -65,6 +70,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'leech',
+    numericId: '007',
     name: 'Sanguessuga',
     description: 'Roubo de Vida +3% do Dano. Máx 30% (10 aplicações).',
     tier: 'incomum',
@@ -76,6 +82,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'scorchedRounds',
+    numericId: '008',
     name: 'Munição Incendiária',
     description: 'Projéteis têm 25% de chance de Incendiar inimigos (20% dano proj./s, 3s). Acumula 3x. Mais apps melhoram.',
     tier: 'incomum',
@@ -100,6 +107,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'cryoRounds',
+    numericId: '009',
     name: 'Munição Criogênica',
     description: 'Projéteis têm 25% de chance de Congelar inimigos, lentidão de 30% por 3s. Mais apps melhoram.',
     tier: 'incomum',
@@ -122,6 +130,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'piercingRounds',
+    numericId: '010',
     name: 'Munição Perfurante',
     description: 'Seus projéteis perfuram +1 inimigo. Aumenta com mais aplicações.',
     tier: 'incomum',
@@ -137,38 +146,23 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'fragmentation',
+    numericId: '011',
     name: 'Fragmentação',
     description: 'Inimigos soltam 2 projéteis fracos ao morrer. Máx 1 aplicação.',
     tier: 'raro',
-    apply: (player, game) => { 
-      game.enableFragmentation = (enemy: Enemy) => {
-        if (!game.addEnemyProjectile) return;
-
-        const currentStaff = ALL_STAFFS_SHOP.find(s => s.id === player.selectedStaffId) || ALL_STAFFS_SHOP.find(s => s.id === DEFAULT_STAFF_ID);
-        const projectileColor = currentStaff?.projectileColor || '#FFA500'; 
-        const projectileGlowColor = currentStaff?.projectileGlowColor;
-        const fragmentationDamage = Math.max(1, ((player.minProjectileDamage + player.maxProjectileDamage) / 2) / 3);
-
-        for(let i = 0; i < 2; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 350; 
-          game.addEnemyProjectile(
-            enemy.x + enemy.width / 2, 
-            enemy.y + enemy.height / 2, 
-            Math.cos(angle) * speed, 
-            Math.sin(angle) * speed, 
-            fragmentationDamage,
-            'player', 
-            projectileColor, 
-            projectileGlowColor 
-          );
-        }
-      };
+    apply: (player, game) => {
+      // The logic for fragmentation projectile creation is handled
+      // by the gameContextForUpgrades.enableFragmentation defined in App.tsx.
+      // This apply function primarily serves to ensure the upgrade ID is added to player.upgrades,
+      // which is done by the caller (handleApplyUpgrade).
+      // No direct action needed here to set up the fragmentation effect itself,
+      // as long as the player.upgrades array reflects that this upgrade was chosen.
     },
     maxApplications: 1,
   },
   {
     id: 'thunderbolt',
+    numericId: '012',
     name: 'Raio Trovejante',
     description: 'Invoca raios dos céus a cada 5s. Começa com 2 raios, +1 por acúmulo. Máx 6 raios.',
     tier: 'raro',
@@ -187,6 +181,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'appraisal',
+    numericId: '013',
     name: 'Avaliação',
     description: '+1 escolha de item de agora em diante. Máx 3 aplicações.',
     tier: 'raro',
@@ -195,17 +190,19 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'immortal',
+    numericId: '014',
     name: 'Imortal',
     description: '+1 Reviver (limpa inimigos ao reviver). Carta removida após pegar.',
     tier: 'raro',
     apply: (player, game) => { 
       player.revives += 1; 
-      if (game.removeUpgradeFromPool) game.removeUpgradeFromPool('immortal');
+      // The removal from pool is now handled by handleApplyUpgrade in App.tsx for upgrades with maxApplications: 1
     },
     maxApplications: 1,
   },
   {
     id: 'seekerRounds',
+    numericId: '015',
     name: 'Mísseis Teleguiados',
     description: 'Seus projéteis rastreiam lentamente os inimigos. Melhora com mais aplicações.',
     tier: 'raro',
@@ -221,6 +218,7 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'energyShield',
+    numericId: '016',
     name: 'Escudo de Energia',
     description: 'Ganha um escudo que bloqueia 1 acerto. Recarrega após 5s sem dano.',
     tier: 'raro',

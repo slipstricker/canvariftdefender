@@ -2,44 +2,7 @@
 import { Enemy, Player, HatItem, StaffItem, Projectile, ProjectileEffectType, Platform, MouseState, ParticleType } from '../types';
 import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR } from '../constants';
 import { SUPER_ALIEN_PALETTE_REF, SPLITTER_PALETTE_REF, MINI_ALIEN_PALETTE_REF } from './spriteArt'; // Import palette refs
-
-// Utility function to convert hex color to rgba
-export function hexToRgba(hex: string, alpha: number): string {
-  let r = 0, g = 0, b = 0;
-  if (hex.length === 4) { // #RGB
-    r = parseInt(hex[1] + hex[1], 16);
-    g = parseInt(hex[2] + hex[2], 16);
-    b = parseInt(hex[3] + hex[3], 16);
-  } else if (hex.length === 7) { // #RRGGBB
-    r = parseInt(hex.substring(1, 3), 16);
-    g = parseInt(hex.substring(3, 5), 16);
-    b = parseInt(hex.substring(5, 7), 16);
-  }
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-// Helper to check if a color is "dark"
-function isColorDark(hexColor: string): boolean {
-    if (!hexColor || hexColor.length < 4) return false; // Default to not dark if invalid
-    let r = 0, g = 0, b = 0;
-    if (hexColor.length === 4) {
-        r = parseInt(hexColor[1] + hexColor[1], 16);
-        g = parseInt(hexColor[2] + hexColor[2], 16);
-        b = parseInt(hexColor[3] + hexColor[3], 16);
-    } else if (hexColor.length === 7) {
-        r = parseInt(hexColor.substring(1, 3), 16);
-        g = parseInt(hexColor.substring(3, 5), 16);
-        b = parseInt(hexColor.substring(5, 7), 16);
-    }
-    // Calculate HSP (Highly Sensitive Poo) brightness
-    // http://alienryderflex.com/hsp.html
-    const hsp = Math.sqrt(
-      0.299 * (r * r) +
-      0.587 * (g * g) +
-      0.114 * (b * b)
-    );
-    return hsp < 128; // Threshold for darkness, can be adjusted
-}
+import { hexToRgba, isColorDark } from './utils';
 
 
 export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, gameTime: number) {
