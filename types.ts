@@ -108,6 +108,7 @@ export interface Player extends GameObject {
   purchasedPermanentSkills: Record<string, { level: number }>; // e.g. { 'skill_dash': { level: 2 } }
   xpBonus: number; // e.g. 1.1 for +10%
   coinDropBonus: number; // e.g. 0.02 for +2% (additive to base 10% chance)
+  coinCheatActiveAmount?: number; // Amount for the one-time coin drop cheat
 
 
   // Hat/Staff Effects

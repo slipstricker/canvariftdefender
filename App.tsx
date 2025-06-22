@@ -413,11 +413,32 @@ const App: React.FC = () => {
        gameContextForUpgrades.enableFragmentation(killedEnemy);
     }
     
-    // --- XP and Coin Drops ---
+    let coinCheatJustDropped = false;
+    if (playerRef.current.coinCheatActiveAmount && playerRef.current.coinCheatActiveAmount > 0) {
+        const cheatCoinValue = playerRef.current.coinCheatActiveAmount;
+        setCoinDrops(prev => [...prev, {
+            id: `coin-cheat-${performance.now()}`,
+            x: killedEnemy.x + killedEnemy.width / 2 - COIN_DROP_SIZE / 2,
+            y: killedEnemy.y + killedEnemy.height / 2 - COIN_DROP_SIZE / 2,
+            width: COIN_DROP_SIZE,
+            height: COIN_DROP_SIZE,
+            value: cheatCoinValue,
+            life: 15, // Longer life for special drop
+            initialLife: 15,
+            vy: -250, // Higher pop
+            vx: (Math.random() - 0.5) * 150,
+            onGround: false,
+            draw: () => {}
+        }]);
+        playSoundFromManager('/assets/sounds/event_level_up_01.wav', 0.9); // Special sound for big drop
+        setPlayer(p => ({ ...p, coinCheatActiveAmount: 0 })); // Mark cheat as used
+        coinCheatJustDropped = true;
+    }
+    
+    // --- XP and Standard Coin Drops (if not a cheat drop) ---
     if (!killedEnemy.isSummonedByBoss) { 
-        if (killedEnemy.enemyType !== 'boss') { // Exclude boss from standard coin/XP, handled separately
-            // Regular coin drop logic
-            if (!adminConfigRef.current.isAdminEnabled) {
+        if (!coinCheatJustDropped && killedEnemy.enemyType !== 'boss') { // Exclude boss from standard coin drop
+            if (!adminConfigRef.current.isAdminEnabled) { // Only if not in admin mode
                 let coinDropChance = 0.10 + (playerRef.current.coinDropBonus || 0);
                 if (playerRef.current.selectedHatId === 'hat_crown') coinDropChance += 0.05;
                 if (Math.random() < coinDropChance) {
@@ -454,7 +475,6 @@ const App: React.FC = () => {
                 exp: currentExp,
                 xpToNextLevel: currentXpToNextLevel,
             }));
-            // Only schedule normal level up if not a boss reward context currently being processed
             if (!isBossRewardModeRef.current && killedEnemy.enemyType !== 'boss') {
                 setTimeout(() => {
                     if (gameStateRef.current === GameState.Playing && !isBossRewardModeRef.current) {
@@ -493,7 +513,7 @@ const App: React.FC = () => {
         }
     }
 
-  }, [gameContextForUpgrades, playSoundFromManager, playerCoins, handleLevelUp]); 
+  }, [gameContextForUpgrades, playSoundFromManager, handleLevelUp]); 
 
 
   const handleApplyUpgrade = useCallback((upgrade: Upgrade) => {

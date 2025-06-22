@@ -93,7 +93,12 @@ export function applyCheatsToPlayer(
     }
   });
 
+  // Re-apply permanent skill effects based on the potentially updated purchasedPermanentSkills
   tempPlayer = applyPermanentSkillEffectsToPlayer(tempPlayer, tempPlayer.purchasedPermanentSkills);
+
+  // Note: Coin cheat is now handled by setting player.coinCheatActiveAmount in initializeNewGameState
+  // and then applied on first enemy kill in App.tsx -> handleEnemyDeath.
+  // No direct coin addition here.
 
   return tempPlayer;
 }

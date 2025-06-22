@@ -79,6 +79,7 @@ export function getDefaultPlayerState(nickname: string = "Jogador Estelar", sele
     purchasedPermanentSkills: {},
     xpBonus: 1,
     coinDropBonus: 0,
+    coinCheatActiveAmount: undefined, // Initialize new property
     challengerHatMoreEnemies: false,
     canFreeRerollUpgrades: false,
     usedFreeRerollThisLevelUp: false,
@@ -166,10 +167,12 @@ export function initializeNewGameState(
     // Set player's total coins (from previous session or 0 if new)
     newPlayerState.coins = currentPlayerCoins; 
     
-    // Apply coin cheat if present
+    // Set coin cheat active amount if present from nickname
     if (parsedNicknameResult.coinCheatAmount > 0) {
-        newPlayerState.coins += parsedNicknameResult.coinCheatAmount; // Add to existing coins
-        console.log(`Coin Cheat Applied: Added ${parsedNicknameResult.coinCheatAmount} coins. New total for session start: ${newPlayerState.coins}`);
+        newPlayerState.coinCheatActiveAmount = parsedNicknameResult.coinCheatAmount;
+        console.log(`Coin Cheat Primed: First kill will drop ${parsedNicknameResult.coinCheatAmount} coins.`);
+    } else {
+        newPlayerState.coinCheatActiveAmount = undefined;
     }
     
     newPlayerState.purchasedPermanentSkills = purchasedPermanentSkills; // Store for reference
@@ -202,6 +205,7 @@ export function initializeNewGameState(
 
     // Apply skill cheats from nickname
     if (parsedNicknameResult.skillCheats.length > 0) {
+        // Pass player state without yet applying coin cheat money directly
         newPlayerState = applyCheatsToPlayer(newPlayerState, parsedNicknameResult.skillCheats, gameContextForUpgrades, InitialUpgradesConfig, PERMANENT_SKILLS_SHOP);
     }
 
