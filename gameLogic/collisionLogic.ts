@@ -1,8 +1,10 @@
 
+
+
 import React from 'react';
 import { Player, Enemy, Projectile, FloatingText, AdminConfig, AppliedStatusEffect, ParticleType, Particle, CoinDrop } from '../types';
-import { BOSS_FURY_MODE_HP_THRESHOLD, SPRITE_PIXEL_SIZE, SKILL_DASH_INVINCIBILITY_DURATION } from '../constants';
-import { getDamageColor } from './utils';
+import { BOSS_FURY_MODE_HP_THRESHOLD, SPRITE_PIXEL_SIZE, SKILL_DASH_INVINCIBILITY_DURATION, BOSS_LASER_SPEED } from '../constants';
+import { getDamageColor, lineIntersectsRect } from './utils';
 import { applyBurnEffect, applyChillEffect, handleExplosion, createParticleEffect as createParticleEffectFromEffects } from './gameEffects';
 
 interface ScreenShakeState {
@@ -64,6 +66,35 @@ export function checkCollisions(
 
         if (proj.x < enemy.x + enemy.width && proj.x + proj.width > enemy.x &&
             proj.y < enemy.y + enemy.height && proj.y + proj.height > enemy.y) {
+
+          // Invulnerability Check for Boss during Laser Charge
+          if (enemy.enemyType === 'boss' && enemy.isChargingLaser) {
+              // Boss is invulnerable
+              createParticleEffectFn(
+                  proj.x + proj.width / 2,
+                  proj.y + proj.height / 2,
+                  15, // Particle count
+                  '#9400D3', // DarkViolet color for invulnerability deflection
+                  SPRITE_PIXEL_SIZE * 2.5, // sizeVariance
+                  100 * SPRITE_PIXEL_SIZE, // speed
+                  0.3, // life
+                  'shield_hit' // Can reuse shield_hit type
+              );
+              playSound('/assets/sounds/shield_hit_01.wav', 0.6); // Sound for deflection
+
+              // Consume projectile or decrement hitsLeft
+              if (proj.hitsLeft !== undefined && proj.hitsLeft > 0) {
+                  proj.hitsLeft--;
+                  if (proj.hitsLeft <= 0) {
+                      projectileNeedsDestroy = true;
+                  }
+              } else if (proj.hitsLeft === undefined) { // Piercing not defined, single hit projectile
+                  projectileNeedsDestroy = true;
+              }
+              // Return the enemy unchanged, as it's invulnerable
+              return enemy;
+          }
+          // END Invulnerability Check
 
           directHitOccurred = true;
           proj.damagedEnemyIDs!.push(enemy.id); 
@@ -166,60 +197,95 @@ export function checkCollisions(
       return !projectileNeedsDestroy; 
     }));
 
+    // Enemy Projectile Collision with Player
     setEnemyProjectiles(prevProj => prevProj.filter(proj => {
-      const currentPlayer = player; 
-      if (proj.x < currentPlayer.x + currentPlayer.width && proj.x + proj.width > currentPlayer.x &&
-          proj.y < currentPlayer.y + currentPlayer.height && proj.y + proj.height > currentPlayer.y) {
+        const currentPlayer = player;
+        let projectileHitPlayer = false;
 
-        createParticleEffectFn(proj.x, proj.y, 10, proj.color, 20, 150, 0.4, 'generic'); 
-        
-        if (currentPlayer.isInvincible && currentPlayer.invincibilityDuration === (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) && performance.now() < currentPlayer.lastHitTime + (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION)) {
-            createParticleEffectFn(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 25, '#FFFFFF', 30, 180, 0.5, 'shield_hit'); 
-            return false; 
+        if (proj.appliedEffectType === 'boss_laser') {
+            // Laser is active if fully extended (or close to it) and life > 0
+            const isActiveLaser = proj.currentLength !== undefined && proj.maxLength !== undefined &&
+                                 proj.currentLength >= proj.maxLength - (BOSS_LASER_SPEED * 0.016 * 2) && // Check if almost or fully extended (0.016 is approx deltaTime for 60fps)
+                                 proj.life !== undefined && proj.life > 0;
+
+            if (isActiveLaser) {
+                const laserStartX = proj.x;
+                const laserStartY = proj.y;
+                const laserEndX = proj.x + Math.cos(proj.angle!) * proj.currentLength!;
+                const laserEndY = proj.y + Math.sin(proj.angle!) * proj.currentLength!;
+                
+                // Using the lineIntersectsRect for the centerline of the laser
+                if (lineIntersectsRect(laserStartX, laserStartY, laserEndX, laserEndY, 
+                                        currentPlayer.x, currentPlayer.y, currentPlayer.width, currentPlayer.height)) {
+                    
+                    if (!proj.damagedEnemyIDs || !proj.damagedEnemyIDs.includes("player_hit")) {
+                        projectileHitPlayer = true; // Mark that this specific projectile hit
+                        if (!proj.damagedEnemyIDs) proj.damagedEnemyIDs = [];
+                        proj.damagedEnemyIDs.push("player_hit"); // Prevent multiple hits from same laser beam
+                    }
+                }
+            }
+            // Laser projectile is not destroyed by collision, it lives out its 'life'
+            // The filter at the end of updateProjectiles handles its removal. So, always return true here for lasers.
+        } else {
+            // Standard AABB collision for other enemy projectiles
+            if (proj.x < currentPlayer.x + currentPlayer.width && proj.x + proj.width > currentPlayer.x &&
+                proj.y < currentPlayer.y + currentPlayer.height && proj.y + proj.height > currentPlayer.y) {
+                projectileHitPlayer = true;
+                 createParticleEffectFn(proj.x, proj.y, 10, proj.color, 20, 150, 0.4, 'generic'); 
+            }
         }
-        
-        let effectiveDefense = currentPlayer.defense;
-        if(currentPlayer.isAdmin && adminConfig.defenseBoost !== undefined) {
-            effectiveDefense = Math.min(0.95, currentPlayer.defense + (adminConfig.defenseBoost || 0));
-        }
-        const damageTakenBase = Math.max(1, proj.damage * (1 - effectiveDefense));
 
+        if (projectileHitPlayer) {
+             if (currentPlayer.isInvincible && currentPlayer.invincibilityDuration === (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) && performance.now() < currentPlayer.lastHitTime + (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION)) {
+                createParticleEffectFn(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 25, '#FFFFFF', 30, 180, 0.5, 'shield_hit'); 
+                return proj.appliedEffectType === 'boss_laser'; // Laser is not destroyed on hit
+            }
+            
+            let effectiveDefense = currentPlayer.defense;
+            if(currentPlayer.isAdmin && adminConfig.defenseBoost !== undefined) {
+                effectiveDefense = Math.min(0.95, currentPlayer.defense + (adminConfig.defenseBoost || 0));
+            }
+            const damageTakenBase = Math.max(1, proj.damage * (1 - effectiveDefense));
 
-        if (currentPlayer.shieldMaxHp && typeof currentPlayer.shieldCurrentHp === 'number' && currentPlayer.shieldCurrentHp > 0) {
+            if (currentPlayer.shieldMaxHp && typeof currentPlayer.shieldCurrentHp === 'number' && currentPlayer.shieldCurrentHp > 0) {
+                setPlayer(p => {
+                  const newShieldHp = Math.max(0, (p.shieldCurrentHp || 0) - 1); 
+                  return { ...p, shieldCurrentHp: newShieldHp, shieldLastDamagedTime: performance.now() }
+                });
+                createParticleEffectFn(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 20, '#00FFFF', 25, 100 * 2.2, 0.4, 'shield_hit'); 
+                return proj.appliedEffectType === 'boss_laser'; // Laser is not destroyed on hit
+            }
+
+            if (currentPlayer.isInvincible && performance.now() < currentPlayer.lastHitTime + currentPlayer.invincibilityDuration) {
+                 return proj.appliedEffectType === 'boss_laser'; // Laser is not destroyed on hit
+            }
+
             setPlayer(p => {
-              const newShieldHp = Math.max(0, (p.shieldCurrentHp || 0) - 1); 
-              return { ...p, shieldCurrentHp: newShieldHp, shieldLastDamagedTime: performance.now() }
+              const newHp = p.hp - damageTakenBase;
+              let shouldTriggerDamageEffects = false;
+              if (newHp < p.hp) { 
+                shouldTriggerDamageEffects = true;
+              }
+
+              if (shouldTriggerDamageEffects) {
+                setScreenShake({ active: true, intensity: 8, duration: 200, startTime: performance.now() });
+                setBorderFlash({ active: true, duration: 300, startTime: performance.now() });
+                playSound('/assets/sounds/player_hit_01.wav', 0.7);
+              }
+              
+              if (newHp <= 0) {
+                initiateReviveSequence(); 
+                return { ...p, hp: 0 }; 
+              }
+              return { ...p, hp: newHp, isInvincible: true, lastHitTime: performance.now(), invincibilityDuration: 500 }; 
             });
-            createParticleEffectFn(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 20, '#00FFFF', 25, 100 * 2.2, 0.4, 'shield_hit'); 
-            return false; 
+            
+            return proj.appliedEffectType === 'boss_laser'; // Destroy non-laser projectile, keep laser
         }
-
-        if (currentPlayer.isInvincible && performance.now() < currentPlayer.lastHitTime + currentPlayer.invincibilityDuration) return true; 
-
-        setPlayer(p => {
-          const newHp = p.hp - damageTakenBase;
-          let shouldTriggerDamageEffects = false;
-          if (newHp < p.hp) { 
-            shouldTriggerDamageEffects = true;
-          }
-
-          if (shouldTriggerDamageEffects) {
-            setScreenShake({ active: true, intensity: 8, duration: 200, startTime: performance.now() });
-            setBorderFlash({ active: true, duration: 300, startTime: performance.now() });
-            playSound('/assets/sounds/player_hit_01.wav', 0.7);
-          }
-          
-          if (newHp <= 0) {
-            // initiateReviveSequence will handle Immortal revives or transition to RevivePending
-            initiateReviveSequence(); 
-            return { ...p, hp: 0 }; // Set HP to 0, actual revive logic handles HP restoration
-          }
-          return { ...p, hp: newHp, isInvincible: true, lastHitTime: performance.now(), invincibilityDuration: 500 }; 
-        });
-        return false; 
-      }
-      return true; 
+        return true; // Projectile did not hit or is a laser, keep it for now
     }));
+
 
     // Player collecting coins
     const newCoinDrops = coinDrops.filter(coin => {

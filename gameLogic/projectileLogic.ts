@@ -1,8 +1,9 @@
 
+
 import { Player, MouseState, Projectile, ProjectileEffectType, Enemy, StaffItem, ParticleType } from '../types';
 import {
   PLAYER_PROJECTILE_COLOR, CANVAS_WIDTH, CANVAS_HEIGHT, PROJECTILE_ART_WIDTH,
-  PROJECTILE_ART_HEIGHT, SPRITE_PIXEL_SIZE, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT
+  PROJECTILE_ART_HEIGHT, SPRITE_PIXEL_SIZE, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT, BOSS_LASER_SPEED, BOSS_LASER_DURATION_MS
 } from '../constants';
 import { ALL_STAFFS_SHOP, DEFAULT_STAFF_ID } from './shopLogic'; 
 import { hexToRgba } from './utils'; 
@@ -175,6 +176,7 @@ export function createPlayerProjectiles(
         homingStrength: currentHomingStrength,
         initialVx: Math.cos(angle) * speed, // Store for some homing types
         initialVy: Math.sin(angle) * speed,
+        speed: speed, // Store the projectile's travel speed
         isExplosive: projectileIsExplosiveForOffScreen, 
         explosionRadius: projectileExplosionRadius,     
         onHitExplosionConfig: projectileOnHitExplosionConfig, 
@@ -267,9 +269,33 @@ export function updateProjectiles(
             const turnAmountThisFrame = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), actualTurnRateRadPerSec * deltaTime);
             
             const newAngle = currentAngle + turnAmountThisFrame;
-            const speed = Math.sqrt(newVx * newVx + newVy * newVy); // Maintain current speed
-            newVx = Math.cos(newAngle) * speed;
-            newVy = Math.sin(newAngle) * speed;
+            const projectileSpeed = Math.sqrt(newVx * newVx + newVy * newVy); // Maintain current speed
+            newVx = Math.cos(newAngle) * projectileSpeed;
+            newVy = Math.sin(newAngle) * projectileSpeed;
+        }
+    } else if (p.appliedEffectType === 'boss_laser') {
+        // Boss laser logic: origin (p.x, p.y) is fixed.
+        // currentLength increases, then life ticks down.
+        newVx = 0; // Origin doesn't move
+        newVy = 0;
+
+        if (p.currentLength === undefined) p.currentLength = 0;
+        if (p.angle === undefined) p.angle = 0; // Should be set at creation
+        
+        const maxLen = p.maxLength !== undefined ? p.maxLength : p.height; // Use maxLength if available, else height
+        const currentExtensionSpeed = p.speed || BOSS_LASER_SPEED; // Use projectile's own speed or fallback
+
+        if (p.currentLength < maxLen) {
+            p.currentLength = Math.min(maxLen, p.currentLength + currentExtensionSpeed * deltaTime);
+            if (p.currentLength >= maxLen && p.life === undefined) {
+                p.life = BOSS_LASER_DURATION_MS / 1000; // Start linger timer
+            }
+        } else { // Already at max length, or p.maxLength was 0 initially
+            if (p.life === undefined) { // Max length reached or was 0, start linger
+                 p.life = BOSS_LASER_DURATION_MS / 1000;
+            } else {
+                p.life -= deltaTime;
+            }
         }
     }
     
@@ -302,25 +328,28 @@ export function updateProjectiles(
       y: p.y + newVy * deltaTime,
       vx: newVx,
       vy: newVy,
+      currentLength: p.currentLength, // Ensure currentLength is passed through
+      life: p.life, // Ensure life is passed through
+      speed: p.speed // Ensure speed is passed through
     };
   }).filter(p => {
-    // Check if projectile is off-screen
     const isOnScreen = p.x > -p.width && p.x < canvasWidth && p.y > -p.height && p.y < canvasHeight;
     
     if (!isOnScreen) { 
-        // If player projectile is explosive and goes off-screen, trigger explosion
         if (p.owner === 'player' && p.isExplosive && p.explosionRadius) {
-            handleExplosionFn(p); // Call the passed-in explosion handler
+            handleExplosionFn(p); 
         }
-        return false; // Remove projectile if off-screen
+        return false; 
     }
 
-    // For player projectiles, check if they have hits left
+    if (p.appliedEffectType === 'boss_laser') {
+        return p.life === undefined || p.life > 0; 
+    }
+    
     if (p.owner === 'player') {
         return (p.hitsLeft !== undefined && p.hitsLeft > 0);
     }
     
-    // Enemy projectiles are removed if off-screen (handled above) or on collision (handled in collisionLogic)
     return true; 
   });
 }

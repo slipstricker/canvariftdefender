@@ -160,7 +160,7 @@ export interface Enemy extends GameObject {
   returnToCenterTimer?: number;
 
   // Boss Minion specific properties
-  canSummonMinions?: boolean; // New flag for boss ability configuration
+  canSummonMinions?: boolean; 
   summonedMinionIds?: string[];
   minionRespawnTimer?: number; 
   minionRespawnCooldown?: number; 
@@ -175,9 +175,9 @@ export interface Enemy extends GameObject {
 
   // Healing Drone specific properties
   isHealingDrone?: boolean;
-  healCooldownValue?: number; // Configurable cooldown
+  healCooldownValue?: number; 
   lastHealTime?: number;
-  healingTargetIds?: string[]; // IDs of enemies currently being targeted for healing
+  healingTargetIds?: string[]; 
   healingRange?: number;
   scanRange?: number;
   droneState?: 'IDLE_SCANNING' | 'MOVING_TO_HEAL' | 'HEALING_PULSE' | 'RETREATING';
@@ -185,13 +185,24 @@ export interface Enemy extends GameObject {
   timeInCurrentState?: number;
 
   // Boss Teleport specific properties
-  canTeleport?: boolean; // Will be set dynamically based on wave config
+  canTeleport?: boolean; 
   lastTeleportTime?: number;
   teleportCooldownValue?: number;
   isReturningToTopAfterTeleport?: boolean;
+
+  // Boss Laser Ability specific properties
+  canUseLaser?: boolean;
+  isChargingLaser?: boolean;
+  laserChargeTimer?: number; // seconds
+  laserCooldownValue?: number; // ms
+  lastLaserFireTime?: number; // timestamp
+  isPerformingChargeAbility?: boolean; // Flag to block other actions during charge
+  
+  // Boss Global Ability Cooldown
+  lastAbilityEndTime?: number; // Timestamp when the last major ability finished
 }
 
-export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment'; 
+export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment' | 'boss_laser'; 
 
 export interface Projectile extends GameObject {
   damage: number; 
@@ -204,6 +215,7 @@ export interface Projectile extends GameObject {
   homingStrength?: number; 
   initialVx?: number; 
   initialVy?: number;
+  speed?: number; // Travel speed for normal projectiles, extension speed for laser
   
   isExplosive?: boolean; 
   explosionRadius?: number; 
@@ -217,9 +229,15 @@ export interface Projectile extends GameObject {
   trailSpawnTimer?: number; 
   damagedEnemyIDs?: string[]; 
   trailPoints?: { x: number, y: number, life: number, initialLife: number, size: number }[]; 
+
+  // Boss Laser specific
+  angle?: number;           // Direction of the laser
+  currentLength?: number;   // Current visual length of the laser as it extends
+  maxLength?: number;       // Maximum length the laser can reach
+  life?: number;            // Lifespan of the laser beam after full extension
 }
 
-export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic' | 'coin_pickup' | 'dash_trail' | 'heal_pulse';
+export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic' | 'coin_pickup' | 'dash_trail' | 'heal_pulse' | 'boss_laser_charge';
 
 export interface Particle extends GameObject {
   life: number;

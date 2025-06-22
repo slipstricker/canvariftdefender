@@ -1,9 +1,11 @@
 
 
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig,
-    DisplayedSkillInfo, FloatingText, CosmeticUnlocksData, HatItem, StaffItem, Star, Nebula, CoinDrop, WaveStatus, CenterScreenMessage, ParticleType, ScreenShakeState, BorderFlashState, BOSS_FURY_MODE_HP_THRESHOLD
+    DisplayedSkillInfo, FloatingText, CosmeticUnlocksData, HatItem, StaffItem, Star, Nebula, CoinDrop, WaveStatus, CenterScreenMessage, ParticleType, ScreenShakeState, BorderFlashState, BOSS_FURY_MODE_HP_THRESHOLD, ProjectileEffectType
 } from './types';
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_INITIAL_HP,
@@ -21,14 +23,14 @@ import { ALL_HATS_SHOP, ALL_STAFFS_SHOP, PERMANENT_SKILLS_SHOP, DEFAULT_HAT_ID, 
 import { repositionAndResizeAllDynamicPlatforms } from './gameLogic/platformLogic';
 import { UPGRADES as InitialUpgradesConfig } from './gameLogic/upgradeLogic';
 import { updatePlayerState, PlayerUpdateResult } from './gameLogic/playerLogic';
-import { updateProjectiles } // createPlayerProjectiles is called inside updatePlayerState
+import { updateProjectiles } 
 from './gameLogic/projectileLogic';
 import { createEnemyOrBoss, createMiniSplitterEnemy } from './gameLogic/enemyLogic';
 import { runEnemyUpdateCycle, updateParticleSystem } from './gameLogic/entityCycle';
 import { checkCollisions } from './gameLogic/collisionLogic';
 import { updateWaveSystem } from './gameLogic/waveManager';
-import { initializeNewGameState, getDefaultPlayerState } from './gameLogic/gameSetup'; // Removed InitialGameState as it's not directly used here
-import { parseCheatNickname } from './gameLogic/cheatLogic'; // Import parseCheatNickname
+import { initializeNewGameState, getDefaultPlayerState } from './gameLogic/gameSetup'; 
+import { parseCheatNickname } from './gameLogic/cheatLogic'; 
 import { createParticleEffect, triggerThunderboltStrikes, applyBurnEffect, applyChillEffect, handleExplosion } from './gameLogic/gameEffects';
 import { drawBackground } from './gameLogic/rendering/backgroundRenderer';
 import { drawPlatforms } from './gameLogic/rendering/platformRenderer';
@@ -48,13 +50,13 @@ export const UPGRADE_ICONS: Record<string, string> = {
 const COIN_DROP_SIZE = 16 * SPRITE_PIXEL_SIZE;
 const BASE_REVIVE_COIN_COST = 30;
 const REVIVE_COST_INCREMENT = 10;
-const REVIVE_PENDING_DURATION_S = 10; // User requested 10 seconds
+const REVIVE_PENDING_DURATION_S = 10; 
 
 const REVIVE_EXPLOSION_RADIUS = 350 * SPRITE_PIXEL_SIZE;
-const REVIVE_EXPLOSION_BOSS_DAMAGE_FACTOR = 0.75; // Factor of player's max HP
+const REVIVE_EXPLOSION_BOSS_DAMAGE_FACTOR = 0.75; 
 
-const SLOW_MOTION_FACTOR = 0.2; // 20% speed
-const SLOW_MOTION_DURATION_MS = 2000; // 2 seconds
+const SLOW_MOTION_FACTOR = 0.2; 
+const SLOW_MOTION_DURATION_MS = 2000; 
 
 
 const App: React.FC = () => {
@@ -65,7 +67,7 @@ const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.StartMenu);
   const previousGameStateRef = useRef<GameState>(GameState.StartMenu);
 
-  const [nickname, setNickname] = useState<string>(""); // This will store the full nickname, including potential cheats
+  const [nickname, setNickname] = useState<string>(""); 
   const [nicknameError, setNicknameError] = useState<string>("");
   
   const [isSlowMotionActive, setIsSlowMotionActive] = useState<boolean>(false);
@@ -75,14 +77,13 @@ const App: React.FC = () => {
   const isBossRewardModeRef = useRef(isBossRewardMode);
   useEffect(() => { isBossRewardModeRef.current = isBossRewardMode; }, [isBossRewardMode]);
   
-  // Game Context for Upgrades, initialized once and uses refs for dynamic values
   const gameContextForUpgrades = useRef({
     enableFragmentation: (enemy: Enemy) => {
         const currentStaff = ALL_STAFFS_SHOP.find(s => s.id === playerRef.current.selectedStaffId) || ALL_STAFFS_SHOP.find(s => s.id === DEFAULT_STAFF_ID)!;
         const projectileColor = currentStaff.projectileColor;
         const projectileGlowColor = currentStaff.projectileGlowColor;
         const fragmentationDamage = Math.max(1, ((playerRef.current.minProjectileDamage + playerRef.current.maxProjectileDamage) / 2) / 3);
-        const fragProjectileSize = SPRITE_PIXEL_SIZE * 3 * 1.2; // Increased size by 20%
+        const fragProjectileSize = SPRITE_PIXEL_SIZE * 3 * 1.2; 
         for(let i = 0; i < 2; i++) {
           const angle = Math.random() * Math.PI * 2; const speed = 350;
           setPlayerProjectiles(prev => [...prev, {
@@ -117,14 +118,53 @@ const App: React.FC = () => {
              setAvailableUpgrades(prev => prev.filter(u => u.id !== upgradeId));
         }
     },
-    addEnemyProjectile: (x, y, vx, vy, damage, owner, color, glowColor) => { 
-       const projectileWidth = SPRITE_PIXEL_SIZE * 3 * 1.2; 
-       const projectileHeight = SPRITE_PIXEL_SIZE * 3 * 1.2; 
-       setEnemyProjectiles(prev => [...prev, {
-         x: x - projectileWidth / 2, y: y - projectileHeight / 2, width: projectileWidth, height: projectileHeight,
-         vx, vy, damage, owner, color: color, glowEffectColor: glowColor, appliedEffectType: 'standard', damagedEnemyIDs: [],
-         draw: () => {}, hitsLeft: 1, 
-       }]);
+    addEnemyProjectile: (
+        x: number, y: number, vx: number, vy: number, damage: number, 
+        owner: 'player' | 'enemy', color: string, glowColor?: string, 
+        projectileEffectType?: ProjectileEffectType, 
+        hitsLeftOverride?: number, 
+        customWidth?: number, 
+        customHeight?: number 
+      ) => { 
+        
+        let projX = x;
+        let projY = y;
+        const defaultWidth = SPRITE_PIXEL_SIZE * 3 * 1.2;
+        const defaultHeight = SPRITE_PIXEL_SIZE * 3 * 1.2;
+
+        if (projectileEffectType !== 'boss_laser') {
+             projX = x - (customWidth !== undefined ? customWidth : defaultWidth) / 2;
+             projY = y - (customHeight !== undefined ? customHeight : defaultHeight) / 2;
+        } // For boss laser, x and y are the exact origin points.
+
+        const newProjectile: Projectile = {
+            x: projX, 
+            y: projY, 
+            width: customWidth !== undefined ? customWidth : defaultWidth, 
+            height: customHeight !== undefined ? customHeight : defaultHeight,
+            vx: vx, 
+            vy: vy, 
+            damage: damage, 
+            owner: owner, 
+            color: color, 
+            glowEffectColor: glowColor, 
+            appliedEffectType: projectileEffectType || 'standard', 
+            damagedEnemyIDs: [],
+            draw: () => {}, 
+            hitsLeft: hitsLeftOverride !== undefined ? hitsLeftOverride : 1,
+        };
+
+        if (projectileEffectType === 'boss_laser') {
+            newProjectile.angle = Math.atan2(vy, vx); 
+            newProjectile.currentLength = 0;
+            newProjectile.maxLength = customHeight; 
+            // newProjectile.height = customHeight!; // height is already set to customHeight
+            // newProjectile.width = customWidth!;  // width is already set to customWidth
+            newProjectile.vx = 0; 
+            newProjectile.vy = 0;
+        }
+        
+       setEnemyProjectiles(prev => [...prev, newProjectile]);
     }
   }).current;
 
@@ -335,8 +375,6 @@ const App: React.FC = () => {
   useEffect(() => { if ([GameState.CharacterSelection, GameState.CosmeticSelectionModal, GameState.Shop].includes(gameState)) drawPlayerPreview(); }, [gameState, selectedHatIdForSelectionScreen, selectedStaffIdForSelectionScreen, drawPlayerPreview]);
 
   useEffect(() => {
-    // This effect is now solely for updating the displayedSkills UI component
-    // when player.upgrades changes.
     const counts: Record<string, number> = {};
     playerRef.current.upgrades?.forEach(upgradeId => { counts[upgradeId] = (counts[upgradeId] || 0) + 1; });
     const skillsToShow: DisplayedSkillInfo[] = Object.entries(counts)
@@ -352,7 +390,7 @@ const App: React.FC = () => {
         })
         .sort((a, b) => InitialUpgradesConfig.findIndex(u => u.id === a.id) - InitialUpgradesConfig.findIndex(u => u.id === b.id));
     setDisplayedSkills(skillsToShow);
-  }, [player.upgrades]); // Only depends on player.upgrades now.
+  }, [player.upgrades]); 
 
   const loadLeaderboardFromService = useCallback(async (isDebugLeaderboard = false) => { try { setLeaderboardEntries(await fetchLeaderboard(isDebugLeaderboard)); } catch { setLeaderboardEntries([]); } }, []);
   
@@ -424,22 +462,21 @@ const App: React.FC = () => {
             width: COIN_DROP_SIZE,
             height: COIN_DROP_SIZE,
             value: cheatCoinValue,
-            life: 15, // Longer life for special drop
+            life: 15, 
             initialLife: 15,
-            vy: -250, // Higher pop
+            vy: -250, 
             vx: (Math.random() - 0.5) * 150,
             onGround: false,
             draw: () => {}
         }]);
-        playSoundFromManager('/assets/sounds/event_level_up_01.wav', 0.9); // Special sound for big drop
-        setPlayer(p => ({ ...p, coinCheatActiveAmount: 0 })); // Mark cheat as used
+        playSoundFromManager('/assets/sounds/event_level_up_01.wav', 0.9); 
+        setPlayer(p => ({ ...p, coinCheatActiveAmount: 0 })); 
         coinCheatJustDropped = true;
     }
     
-    // --- XP and Standard Coin Drops (if not a cheat drop) ---
-    if (!killedEnemy.isSummonedByBoss && killedEnemy.enemyType !== 'healing_drone') { // Drones might give XP but not coins
-        if (!coinCheatJustDropped && killedEnemy.enemyType !== 'boss') { // Exclude boss from standard coin drop
-            if (!adminConfigRef.current.isAdminEnabled) { // Only if not in admin mode
+    if (!killedEnemy.isSummonedByBoss && killedEnemy.enemyType !== 'healing_drone' && killedEnemy.enemyType !== 'miniSplitter') {
+        if (!coinCheatJustDropped && killedEnemy.enemyType !== 'boss') { 
+            if (!adminConfigRef.current.isAdminEnabled) { 
                 let coinDropChance = 0.10 + (playerRef.current.coinDropBonus || 0);
                 if (playerRef.current.selectedHatId === 'hat_crown') coinDropChance += 0.05;
                 if (Math.random() < coinDropChance) {
@@ -451,7 +488,6 @@ const App: React.FC = () => {
             }
         }
 
-        // XP gain logic (applies to boss as well, if they give expValue)
         let xpEarned = killedEnemy.expValue * (playerRef.current.xpBonus || 1);
         if (playerRef.current.isAdmin && adminConfigRef.current.xpMultiplier) {
             xpEarned *= adminConfigRef.current.xpMultiplier;
@@ -489,7 +525,6 @@ const App: React.FC = () => {
     }
 
 
-    // --- Boss Specific Death Logic ---
     if (killedEnemy.enemyType === 'boss') {
         setIsBossRewardMode(true);
         playSoundFromManager('/assets/sounds/event_level_up_01.wav', 0.8);
@@ -619,7 +654,6 @@ const App: React.FC = () => {
     const finalWave = currentWaveRef.current;
     const finalTime = gameTimeRef.current;
 
-    // Parse the full nickname from state to check for cheats
     const parsedNicknameForScore = parseCheatNickname(nickname);
     const hasSkillCheats = parsedNicknameForScore.skillCheats.length > 0;
     const hasCoinCheat = parsedNicknameForScore.coinCheatAmount > 0;
@@ -633,7 +667,6 @@ const App: React.FC = () => {
         suffix = " - CoinCheater";
     }
     
-    // playerRef.current.nickname should be the base nickname
     const nicknameToSaveOnLeaderboard = parsedNicknameForScore.baseNickname + suffix;
     
     if (playerRef.current.selectedHatId !== 'hat_fedora') {
@@ -712,7 +745,7 @@ const App: React.FC = () => {
         enemiesRef.current, playerRef.current, currentDeltaTime, gameContextForUpgrades.addEnemyProjectile,
         currentWaveRef.current, playerProjectilesRef.current, handleEnemyDeath, setFloatingTexts, playSoundFromManager,
         setCenterScreenMessage,
-        (x,y,count,color,size,speed,life,type) => createParticleEffect(setParticles, x,y,count,color,size,speed,life,type) // Pass createParticleEffect here
+        (x,y,count,color,size,speed,life,type) => createParticleEffect(setParticles, x,y,count,color,size,speed,life,type) 
     );
     setEnemies(processedEnemies);
     if (newMinionsFromBoss.length > 0) setEnemies(prev => [...prev, ...newMinionsFromBoss]);
@@ -728,7 +761,7 @@ const App: React.FC = () => {
         enemiesRef.current, setEnemies, playerRef.current, setPlayer, handleEnemyDeath,
         setFloatingTexts, setScreenShake, setBorderFlash, adminConfigRef.current, playSoundFromManager, 
         initiateReviveSequence, 
-        setParticles, // Pass setParticles here
+        setParticles, 
         coinDropsRef.current, setCoinDrops, playerCoins, setPlayerCoins 
     );
     

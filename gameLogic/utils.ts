@@ -107,3 +107,55 @@ export function parseAbilityWaveConfig(configString: string | undefined, current
     return false;
   }
 }
+
+// Line segment (p0x,p0y)-(p1x,p1y) vs Axis-Aligned Rectangle (rectX,rectY,rectW,rectH)
+export function lineIntersectsRect(
+    p0x: number, p0y: number, p1x: number, p1y: number,
+    rectX: number, rectY: number, rectW: number, rectH: number
+): boolean {
+    const minX = Math.min(p0x, p1x);
+    const maxX = Math.max(p0x, p1x);
+    const minY = Math.min(p0y, p1y);
+    const maxY = Math.max(p0y, p1y);
+
+    const rectMinX = rectX;
+    const rectMaxX = rectX + rectW;
+    const rectMinY = rectY;
+    const rectMaxY = rectY + rectH;
+
+    // Check if line segment's bounding box intersects rectangle's bounding box
+    if (maxX < rectMinX || minX > rectMaxX || maxY < rectMinY || minY > rectMaxY) {
+        return false; // No intersection if bounding boxes don't overlap
+    }
+
+    // Check if any of the line segment's endpoints are inside the rectangle
+    if ((p0x >= rectMinX && p0x <= rectMaxX && p0y >= rectMinY && p0y <= rectMaxY) ||
+        (p1x >= rectMinX && p1x <= rectMaxX && p1y >= rectMinY && p1y <= rectMaxY)) {
+        return true;
+    }
+
+    // Check intersection of the line segment with each of the 4 edges of the rectangle
+    // Top edge
+    if (lineIntersectsLine(p0x, p0y, p1x, p1y, rectMinX, rectMinY, rectMaxX, rectMinY)) return true;
+    // Bottom edge
+    if (lineIntersectsLine(p0x, p0y, p1x, p1y, rectMinX, rectMaxY, rectMaxX, rectMaxY)) return true;
+    // Left edge
+    if (lineIntersectsLine(p0x, p0y, p1x, p1y, rectMinX, rectMinY, rectMinX, rectMaxY)) return true;
+    // Right edge
+    if (lineIntersectsLine(p0x, p0y, p1x, p1y, rectMaxX, rectMinY, rectMaxX, rectMaxY)) return true;
+
+    return false;
+}
+
+// Helper: Checks if two line segments (p0x,p0y)-(p1x,p1y) and (p2x,p2y)-(p3x,p3y) intersect
+function lineIntersectsLine(p0x: number, p0y: number, p1x: number, p1y: number, p2x: number, p2y: number, p3x: number, p3y: number): boolean {
+    const s1_x = p1x - p0x;
+    const s1_y = p1y - p0y;
+    const s2_x = p3x - p2x;
+    const s2_y = p3y - p2y;
+
+    const s = (-s1_y * (p0x - p2x) + s1_x * (p0y - p2y)) / (-s2_x * s1_y + s1_x * s2_y);
+    const t = ( s2_x * (p0y - p2y) - s2_y * (p0x - p2x)) / (-s2_x * s1_y + s1_x * s2_y);
+
+    return s >= 0 && s <= 1 && t >= 0 && t <= 1;
+}

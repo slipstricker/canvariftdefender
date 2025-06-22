@@ -1,18 +1,20 @@
 
 
+
 import { Enemy, Player, Projectile, AppliedStatusEffect, EnemyType, AlienVisualVariant, EnemyUpdateResult } from '../types';
 import { 
     CANVAS_HEIGHT, CANVAS_WIDTH, ENEMY_PROJECTILE_COLOR,
-    ENEMY_CONFIG, FIRST_BOSS_WAVE_NUMBER, ALL_BOSS_WAVES, // Use new config
+    ENEMY_CONFIG, FIRST_BOSS_WAVE_NUMBER, ALL_BOSS_WAVES, 
     SPRITE_PIXEL_SIZE, ENEMY_ART_WIDTH, ENEMY_ART_HEIGHT, BOSS_ART_WIDTH, BOSS_ART_HEIGHT,
     PROJECTILE_ART_WIDTH, PROJECTILE_ART_HEIGHT,
-    SPLITTER_ART_WIDTH, SPLITTER_ART_HEIGHT, SPLITTER_MIN_WAVE,
+    SPLITTER_MIN_WAVE, SPLITTER_ART_WIDTH, SPLITTER_ART_HEIGHT,
     BOSS_MINION_RESPAWN_COOLDOWN, BOSS_MINION_RESPAWN_WARNING_DURATION,
     BOSS_MAX_MINIONS_NORMAL, BOSS_MAX_MINIONS_FURY, BOSS_FURY_MINION_SPAWN_COOLDOWN,
     HEALING_DRONE_MIN_WAVE, HEALING_DRONE_SPAWN_CHANCE, HEALING_DRONE_ART_WIDTH, HEALING_DRONE_ART_HEIGHT,
     HEALING_DRONE_HEAL_COOLDOWN_MS,
     HEALING_DRONE_MAX_TARGETS, HEALING_DRONE_HEAL_RANGE, HEALING_DRONE_SCAN_RANGE, HEALING_DRONE_RETREAT_Y_MAX_FACTOR,
-    BOSS_TELEPORT_COOLDOWN_MS, BOSS_ABILITY_WAVE_CONFIG
+    BOSS_TELEPORT_COOLDOWN_MS, BOSS_ABILITY_WAVE_CONFIG,
+    BOSS_LASER_CHARGE_TIME_MS, BOSS_LASER_COOLDOWN_MS
 } from '../constants';
 import { parseAbilityWaveConfig } from './utils';
 
@@ -53,17 +55,11 @@ function createBossEnemy(
   const refStats = calculateStandardStats(bossCfg.statReferenceWave, playerLevel, 'bossStatRef');
 
   // Apply boss-specific multipliers to these reference stats to get INITIAL boss stats (for FIRST_BOSS_WAVE_NUMBER)
-  let initialBossHp = refStats.hp * bossCfg.hpMultiplier; // Use hpMultiplier on ref standard HP
+  let initialBossHp = refStats.hp * bossCfg.hpMultiplier; 
   let initialBossDamage = refStats.damage * bossCfg.damageMultiplier;
-  let initialBossShootCooldown = refStats.shootCooldown / bossCfg.attackSpeedMultiplier; // Higher multiplier = faster attack
+  let initialBossShootCooldown = refStats.shootCooldown / bossCfg.attackSpeedMultiplier; 
   let initialBossExp = refStats.xp * bossCfg.xpMultiplier;
   let initialBossSpeed = refStats.speed * bossCfg.speedMultiplier;
-
-  // Override HP if a direct base is provided for the first boss wave (legacy or specific tuning)
-  // This line was: currentHp = wave5BossActualHp; in the old code. If ENEMY_CONFIG.boss.baseHp is set, it might override.
-  // For now, let's assume hpMultiplier is the primary way. If direct base HP is needed, config needs another field.
-  // initialBossHp = bossCfg.baseHp || initialBossHp; // If baseHp exists in config, use it.
-
 
   // Scale stats for subsequent boss waves
   let currentHp = initialBossHp;
@@ -125,9 +121,16 @@ function createBossEnemy(
     showMinionWarningTimer: 0,
     showMinionSpawnedMessageTimer: 0,
     canTeleport: parseAbilityWaveConfig(BOSS_ABILITY_WAVE_CONFIG.teleport, currentWave), 
-    lastTeleportTime: performance.now() + Math.random() * BOSS_TELEPORT_COOLDOWN_MS / 2, // Stagger initial teleports
+    lastTeleportTime: performance.now() + Math.random() * BOSS_TELEPORT_COOLDOWN_MS / 2, 
     teleportCooldownValue: BOSS_TELEPORT_COOLDOWN_MS,
     isReturningToTopAfterTeleport: false,
+    canUseLaser: parseAbilityWaveConfig(BOSS_ABILITY_WAVE_CONFIG.laser, currentWave),
+    isChargingLaser: false,
+    laserChargeTimer: 0,
+    laserCooldownValue: BOSS_LASER_COOLDOWN_MS,
+    lastLaserFireTime: 0,
+    isPerformingChargeAbility: false,
+    lastAbilityEndTime: 0, // Initialize global skill cooldown timer
   };
 }
 
@@ -149,7 +152,7 @@ export function createEnemyOrBoss(
   let enemyActualWidth, enemyActualHeight: number;
   let enemyHp = stdStats.hp;
   let enemyDamage = stdStats.damage;
-  let enemySpeed = stdStats.speed + Math.random() * 20; // Add some random variation to base speed
+  let enemySpeed = stdStats.speed + Math.random() * 20; 
   let enemyExp = stdStats.xp;
   let enemyShootCooldown = stdStats.shootCooldown;
   let enemyColor: string;
@@ -175,11 +178,11 @@ export function createEnemyOrBoss(
     enemyActualWidth = HEALING_DRONE_ART_WIDTH * SPRITE_PIXEL_SIZE;
     enemyActualHeight = HEALING_DRONE_ART_HEIGHT * SPRITE_PIXEL_SIZE;
     enemyHp *= droneCfg.hpFactor;
-    enemyDamage = 0; // Drones don't attack
+    enemyDamage = 0; 
     enemySpeed *= droneCfg.speedFactor;
     enemyExp *= droneCfg.xpFactor;
-    enemyShootCooldown = Infinity; // Drones don't shoot
-    enemyColor = `hsl(130, 70%, 50%)`; // Greenish
+    enemyShootCooldown = Infinity; 
+    enemyColor = `hsl(130, 70%, 50%)`; 
 
     const newEnemy: Enemy = {
         id: `${enemyType}-${performance.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -193,7 +196,7 @@ export function createEnemyOrBoss(
         maxHp: enemyHp,
         damage: enemyDamage,
         expValue: Math.floor(enemyExp),
-        isFollowingPlayer: false, // Drones have their own movement logic
+        isFollowingPlayer: false, 
         shootCooldown: enemyShootCooldown,
         lastShotTime: 0, 
         color: enemyColor,
@@ -214,7 +217,7 @@ export function createEnemyOrBoss(
         retreatPosition: { x: Math.random() * canvasWidth, y: CANVAS_HEIGHT * HEALING_DRONE_RETREAT_Y_MAX_FACTOR },
         timeInCurrentState: 0,
     };
-    playSound('/assets/sounds/enemy_spawn_alien_01.wav', 0.4); // Softer spawn for drone
+    playSound('/assets/sounds/enemy_spawn_alien_01.wav', 0.4); 
     return newEnemy;
 
   } else {
@@ -268,13 +271,13 @@ export function createMiniSplitterEnemy(
 
   const miniHp = stdStats.hp * miniCfg.hpFactor;
   const miniDamage = stdStats.damage * miniCfg.damageFactor;
-  const miniSpeed = (stdStats.speed + Math.random() * 10) * miniCfg.speedFactor; // Add variation before factor
+  const miniSpeed = (stdStats.speed + Math.random() * 10) * miniCfg.speedFactor; 
   const miniExp = stdStats.xp * miniCfg.xpFactor;
   let miniShootCooldown = stdStats.shootCooldown * miniCfg.shootCooldownFactor;
 
-  // If miniSplitter has a specific min cooldown different from scaled standard
-  if (ENEMY_CONFIG.standard.shootCooldown.min && miniCfg.shootCooldownFactor < 1) { // If it's meant to be faster
-     // Ensure it doesn't go below a reasonable minimum if not overridden
+  
+  if (ENEMY_CONFIG.standard.shootCooldown.min && miniCfg.shootCooldownFactor < 1) { 
+     
      const effectiveMinCoolddown = ENEMY_CONFIG.standard.shootCooldown.min * miniCfg.shootCooldownFactor;
      miniShootCooldown = Math.max(miniShootCooldown, effectiveMinCoolddown);
   }

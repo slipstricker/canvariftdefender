@@ -156,20 +156,21 @@ export const ENEMY_CONFIG = {
     xpFactor: 0.3,
   },
   healingDrone: { // factors applied to Standard stats for the same wave/level
-    hpFactor: 0.6,    // Lower HP
+    hpFactor: 0.9,    // Lower HP
     damageFactor: 0,  // No damage
-    speedFactor: 0.9, // Moderate speed
+    speedFactor: 1.5, // Moderate speed
     shootCooldownFactor: 1, // Irrelevant, doesn't shoot
     xpFactor: 0.4,    // Lower XP
   },
   boss: {
     statReferenceWave: 4, // Wave to use for standard enemy stat calculation as a base for the boss
     // Multipliers for "Standard Enemy @ statReferenceWave" stats:
-    hpMultiplier: 20.0, // Example: If standard@refWave has 60 HP, boss gets 60*25. This sets the initial boss HP.
+    hpMultiplier: 20.0, 
     damageMultiplier: 2.0,
     attackSpeedMultiplier: 2.0, // Cooldown is divided by this
     xpMultiplier: 5.0,
     speedMultiplier: 1.0, 
+    laserDamageFactor: 2.5, // Laser damage = boss.damage * laserDamageFactor
 
     // Scaling for subsequent boss waves (e.g. wave 15 boss vs wave 5 boss)
     // Applied per 10-wave increment beyond the FIRST_BOSS_WAVE_NUMBER.
@@ -193,10 +194,9 @@ export const ALL_BOSS_WAVES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65
 
 // Boss Ability Wave Configuration
 export const BOSS_ABILITY_WAVE_CONFIG = {
-  teleport: "all", // "all" or "5,15,25" (comma-separated wave numbers)
-  summonMinions: "all", // "all" or "10,20,30"
-  // Example for future:
-  // specialAttackX: "15,30,45" 
+  teleport: "all", 
+  summonMinions: "all", 
+  laser: "all", // "all" or e.g., "10,20,30"
 };
 
 
@@ -206,13 +206,30 @@ export const BOSS_FURY_MINION_SPAWN_COOLDOWN = 5;
 export const BOSS_MINION_RESPAWN_WARNING_DURATION = 2; 
 export const BOSS_MAX_MINIONS_NORMAL = 3;
 export const BOSS_MAX_MINIONS_FURY = 5;
-export const BOSS_FURY_MODE_HP_THRESHOLD = 0.25; // Keeping this, as it's a gameplay threshold
+export const BOSS_FURY_MODE_HP_THRESHOLD = 0.40; 
 
 // Boss Teleport Ability Constants
-export const BOSS_TELEPORT_COOLDOWN_MS = 10000; // 10 seconds
-export const BOSS_PREFERRED_Y_POSITION = CANVAS_HEIGHT * 0.10; // Preferred Y position (e.g., 10% from top)
-export const BOSS_TELEPORT_MAX_Y_DESTINATION = CANVAS_HEIGHT * 0.70; // Max Y boss can teleport to (e.g. 70% from top)
-export const BOSS_TELEPORT_MIN_Y_AFTER_TELEPORT_FOR_RETURN = CANVAS_HEIGHT * 0.40; // If Y > this after teleport, return to preferred Y
+export const BOSS_TELEPORT_COOLDOWN_MS = 10000; 
+export const BOSS_PREFERRED_Y_POSITION = CANVAS_HEIGHT * 0.10; 
+export const BOSS_TELEPORT_MAX_Y_DESTINATION = CANVAS_HEIGHT * 0.70; 
+export const BOSS_TELEPORT_MIN_Y_AFTER_TELEPORT_FOR_RETURN = CANVAS_HEIGHT * 0.40; 
+
+// Boss Laser Ability Constants
+export const BOSS_LASER_CHARGE_TIME_MS = 2000;
+export const BOSS_LASER_COOLDOWN_MS = 15000;
+export const BOSS_LASER_SPEED = 2500; // Base speed at which the laser visually extends, pixels per second
+export const BOSS_LASER_SPEED_INCREASE_PER_BOSS_WAVE = 0.10; // 10% increase per boss wave after the first
+export const BOSS_LASER_MAX_TOTAL_SPEED_MULTIPLIER = 1.5; // Max speed is 150% of base (50% increase)
+export const BOSS_LASER_COLOR = '#FF0000'; // Red
+export const BOSS_LASER_GLOW_COLOR = '#FF6347'; // Tomato
+export const BOSS_LASER_WIDTH_FACTOR = 0.05 * 1.3; // Factor of boss's own width for laser thickness (Increased by 30%)
+export const BOSS_LASER_MAX_LENGTH = CANVAS_WIDTH * 1.5; // Max length of the laser beam
+export const BOSS_LASER_PIERCE_COUNT = 999; // Effectively infinite pierce for a beam
+export const BOSS_LASER_DURATION_MS = 300; // How long the beam stays visible after reaching full length
+
+// Boss Global Skill Cooldown
+export const BOSS_GLOBAL_SKILL_COOLDOWN_MS = 2000; // 2 seconds
+
 
 // Splitter Enemy Constants
 export const SPLITTER_MIN_WAVE = 3;
@@ -221,7 +238,7 @@ export const MINI_SPLITTER_COUNT_MAX = 3;
 
 // Healing Drone Constants
 export const HEALING_DRONE_MIN_WAVE = 4;
-export const HEALING_DRONE_SPAWN_CHANCE = 0.12; // 12% chance per enemy spawn slot, if wave condition met
+export const HEALING_DRONE_SPAWN_CHANCE = 0.12; 
 export const HEALING_DRONE_HEAL_PERCENTAGE = 0.20; 
 export const HEALING_DRONE_HEAL_COOLDOWN_MS = 5000;
 export const HEALING_DRONE_MAX_TARGETS = 3;

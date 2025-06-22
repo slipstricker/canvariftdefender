@@ -1,7 +1,7 @@
 
 
 import { Enemy, Player, HatItem, StaffItem, Projectile, ProjectileEffectType, Platform, MouseState, ParticleType } from '../types';
-import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR, HEALING_DRONE_BLINK_SPEED } from '../constants';
+import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR, HEALING_DRONE_BLINK_SPEED, BOSS_LASER_COLOR, BOSS_LASER_GLOW_COLOR } from '../constants';
 import { SUPER_ALIEN_PALETTE_REF, SPLITTER_PALETTE_REF, MINI_ALIEN_PALETTE_REF } from './spriteArt'; // Import palette refs
 import { hexToRgba, isColorDark } from './utils';
 
@@ -15,12 +15,12 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.save();
   ctx.translate(pX, pY);
 
-  const robeColorPrimary = '#6A5ACD'; // Lighter: Slate Blue
-  const robeColorAccent = '#8A7FFF';  // Lighter: Light Slate Blue
-  const skinColor = '#B8CCE2';       // Slightly lighter skin
-  const beardColor = '#E8FFFF';     // Slightly lighter beard
-  const shoeColor = '#2A2F5A';      // Darker Slate Blue for shoes
-  const eyeColor = '#00FFFF';       // Cyan (glowing eyes)
+  const robeColorPrimary = '#6A5ACD'; 
+  const robeColorAccent = '#8A7FFF';  
+  const skinColor = '#B8CCE2';       
+  const beardColor = '#E8FFFF';     
+  const shoeColor = '#2A2F5A';      
+  const eyeColor = '#00FFFF';       
 
   const bodyWidth = pW * 0.75;
   const bodyHeight = pH * 0.85;
@@ -42,7 +42,7 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   const gradient = ctx.createLinearGradient(pW/2, bodyYOffset + idleBob, pW/2, pH + idleBob);
   gradient.addColorStop(0, robeColorAccent);
   gradient.addColorStop(0.3, robeColorPrimary);
-  gradient.addColorStop(1, '#3A3F78'); // Lighter Darker Slate Blue
+  gradient.addColorStop(1, '#3A3F78'); 
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.moveTo(pW/2 - bodyWidth/2, bodyYOffset + bodyHeight * 0.15 + idleBob); 
@@ -79,7 +79,7 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
   ctx.fill();
   
-  ctx.fillStyle = '#A8BBC9'; // Lighter nose
+  ctx.fillStyle = '#A8BBC9'; 
   const noseRadius = headRadius * 0.2;
   ctx.beginPath();
   ctx.arc(headX, headY + headRadius * 0.15, noseRadius, 0, Math.PI * 2);
@@ -145,15 +145,15 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
   ctx.save();
   ctx.translate(hatDrawX, hatDrawY);
 
-  const primarySpaceColor = '#3D4A70'; // Darker Slate Blue for contrast
-  const accentSpaceColor = '#94A5D0'; // Lighter Slate Blue/Purple for accents
-  const crystalColor = '#00E0E0';     // Bright Cyan
+  const primarySpaceColor = '#3D4A70'; 
+  const accentSpaceColor = '#94A5D0'; 
+  const crystalColor = '#00E0E0';     
   const metallicSilver = '#C0C0C0';
   const metallicGold = '#FFD700';
 
 
   switch (hat.id) {
-    case 'hat_wizard': // Cosmic Wizard Hat - UNCHANGED
+    case 'hat_wizard': 
       const wizHatHeight = baseHatHeight * 2.0; 
       const wizHatBaseWidth = baseHatWidth * 0.7;
       const wizHatBrimWidth = wizHatBaseWidth * 1.4; 
@@ -199,24 +199,22 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       break;
 
-    case 'hat_helmet': // Alien Tech Helmet - NEW DESIGN
+    case 'hat_helmet': 
       const helmetW = baseHatWidth * 0.9;
       const helmetH = baseHatHeight * 0.8;
-      const helmetBaseColor = '#4A5568'; // Dark metallic grey
-      const helmetAccentColor = '#718096'; // Lighter metallic
-      const helmetGlowColor = '#4FD1C5'; // Teal
+      const helmetBaseColor = '#4A5568'; 
+      const helmetAccentColor = '#718096'; 
+      const helmetGlowColor = '#4FD1C5'; 
 
-      // Asymmetrical main shell
       ctx.fillStyle = helmetBaseColor;
       ctx.beginPath();
-      ctx.moveTo(-helmetW * 0.5, -helmetH * 0.3); // Top left
-      ctx.quadraticCurveTo(-helmetW * 0.6, 0, -helmetW * 0.45, helmetH * 0.4); // Left side bulge
-      ctx.lineTo(helmetW * 0.4, helmetH * 0.45); // Bottom right
-      ctx.quadraticCurveTo(helmetW * 0.55, 0, helmetW * 0.45, -helmetH * 0.35); // Right side
+      ctx.moveTo(-helmetW * 0.5, -helmetH * 0.3); 
+      ctx.quadraticCurveTo(-helmetW * 0.6, 0, -helmetW * 0.45, helmetH * 0.4); 
+      ctx.lineTo(helmetW * 0.4, helmetH * 0.45); 
+      ctx.quadraticCurveTo(helmetW * 0.55, 0, helmetW * 0.45, -helmetH * 0.35); 
       ctx.closePath();
       ctx.fill();
 
-      // Accent panels
       ctx.fillStyle = helmetAccentColor;
       ctx.beginPath();
       ctx.moveTo(-helmetW * 0.4, -helmetH * 0.25);
@@ -225,15 +223,13 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
       ctx.closePath();
       ctx.fill();
 
-      // Singular optical sensor (visor)
       ctx.fillStyle = helmetGlowColor;
       ctx.shadowColor = helmetGlowColor; ctx.shadowBlur = 8;
       ctx.beginPath();
-      ctx.ellipse(helmetW * 0.1, -helmetH * 0.05, helmetW * 0.3, helmetH * 0.2, 0, 0, Math.PI * 2); // Almond shape
+      ctx.ellipse(helmetW * 0.1, -helmetH * 0.05, helmetW * 0.3, helmetH * 0.2, 0, 0, Math.PI * 2); 
       ctx.fill();
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       
-      // Glowing conduits
       ctx.strokeStyle = helmetGlowColor; ctx.lineWidth = pH * 0.015;
       ctx.beginPath();
       ctx.moveTo(-helmetW * 0.3, helmetH * 0.3);
@@ -241,7 +237,6 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
       ctx.quadraticCurveTo(helmetW * 0.2, -helmetH * 0.25, helmetW * 0.4, -helmetH * 0.1);
       ctx.stroke();
 
-      // Small antenna
       ctx.fillStyle = helmetAccentColor;
       ctx.beginPath();
       ctx.moveTo(helmetW * 0.35, -helmetH * 0.3);
@@ -251,44 +246,40 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
       ctx.fill();
       break;
 
-    case 'hat_propeller_beanie': // Living Nebula Beanie - NEW DESIGN
+    case 'hat_propeller_beanie': 
       const beanieR = baseHatWidth * 0.48;
       const beanieH = baseHatHeight * 0.7;
-      const nebulaCols = ['#2B316C', '#4A00E0', '#8E44AD', '#C71585']; // Deep Indigo, Purple, Violet, MediumVioletRed
-      const starCol = '#FFFFE0'; // LightYellow
+      const nebulaCols = ['#2B316C', '#4A00E0', '#8E44AD', '#C71585']; 
+      const starCol = '#FFFFE0'; 
 
-      // Nebula effect (multiple layers)
       for (let i = 0; i < 4; i++) {
-        const swirlAngle = gameTime * 0.1 + i * Math.PI / 2; // Slow swirl
+        const swirlAngle = gameTime * 0.1 + i * Math.PI / 2; 
         const swirlRadiusX = beanieR * (0.6 + Math.sin(swirlAngle * 0.5 + i) * 0.2);
         const swirlRadiusY = beanieR * (0.4 + Math.cos(swirlAngle * 0.7 + i) * 0.15);
-        ctx.fillStyle = hexToRgba(nebulaCols[i % nebulaCols.length], 0.3 + Math.random()*0.1); // Add slight random alpha
+        ctx.fillStyle = hexToRgba(nebulaCols[i % nebulaCols.length], 0.3 + Math.random()*0.1); 
         ctx.beginPath();
         ctx.ellipse(
-            Math.cos(swirlAngle + i) * beanieR * 0.1, // Offset center for more dynamism
+            Math.cos(swirlAngle + i) * beanieR * 0.1, 
             -beanieH * 0.35 + Math.sin(swirlAngle * 1.2 + i) * beanieR * 0.1,
             swirlRadiusX, swirlRadiusY,
-            swirlAngle * 0.3, // Rotate ellipse itself
+            swirlAngle * 0.3, 
             0, Math.PI * 2
         );
         ctx.fill();
       }
       
-      // Beanie main shape (dark base for nebula to pop)
-      ctx.fillStyle = '#1A1D36'; // Very dark blue
+      ctx.fillStyle = '#1A1D36'; 
       ctx.beginPath();
-      ctx.arc(0, -beanieH * 0.25, beanieR, Math.PI, 0); // Upper part of beanie
-      ctx.ellipse(0, -beanieH*0.25 + beanieR*0.75, beanieR, beanieR*0.25, 0, 0, Math.PI); // Connect to brim
+      ctx.arc(0, -beanieH * 0.25, beanieR, Math.PI, 0); 
+      ctx.ellipse(0, -beanieH*0.25 + beanieR*0.75, beanieR, beanieR*0.25, 0, 0, Math.PI); 
       ctx.closePath();
       ctx.fill();
 
-      // Rolled-up brim
-      ctx.fillStyle = '#2C3E50'; // Dark Slate Blue
+      ctx.fillStyle = '#2C3E50'; 
       ctx.beginPath();
       ctx.ellipse(0, -beanieH * 0.25 + beanieR * 0.75, beanieR, beanieR * 0.25, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Static star gems (twinkling)
       ctx.shadowColor = starCol;
       for(let i=0; i<5; i++){
           const gemX = (Math.random() - 0.5) * beanieR * 1.5;
@@ -301,53 +292,49 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       break;
       
-    case 'hat_crown': // Celestial Orbit Crown - NEW DESIGN
-      const crownBaseH = baseHatHeight * 0.3; // Lower profile for crown base
+    case 'hat_crown': 
+      const crownBaseH = baseHatHeight * 0.3; 
       const crownBaseW = baseHatWidth * 0.85;
-      const bandColor = '#2D3748'; // Dark Gunmetal
-      const focalCrystalColor = '#E0FFFF'; // Light Cyan
-      hatDrawY += pH*0.1; // Adjust Y position slightly higher for crown
+      const bandColor = '#2D3748'; 
+      const focalCrystalColor = '#E0FFFF'; 
+      hatDrawY += pH*0.1; 
 
-      // Main band
       ctx.fillStyle = bandColor;
       ctx.beginPath();
       ctx.rect(-crownBaseW / 2, -crownBaseH * 0.3, crownBaseW, crownBaseH * 0.6);
       ctx.fill();
       
-      // Orbiting elements
       const orbitRadius = crownBaseW * 0.6;
       const numOrbs = 2;
-      const orbColors = ['#60A5FA', '#F87171', '#FBBF24']; // Blue, Red, Gold
+      const orbColors = ['#60A5FA', '#F87171', '#FBBF24']; 
       for(let i=0; i<numOrbs; i++) {
-          const angle = gameTime * (0.5 + i*0.1) + i * Math.PI; // Different speeds and starting points
+          const angle = gameTime * (0.5 + i*0.1) + i * Math.PI; 
           const orbX = Math.cos(angle) * orbitRadius;
-          const orbY = -crownBaseH * 0.1 + Math.sin(angle * 0.5) * crownBaseH * 0.4; // Elliptical orbit (Y plane)
+          const orbY = -crownBaseH * 0.1 + Math.sin(angle * 0.5) * crownBaseH * 0.4; 
           const orbSize = pH * (0.02 + Math.random()*0.01);
           ctx.fillStyle = orbColors[i % orbColors.length];
           ctx.beginPath();
           ctx.arc(orbX, orbY, orbSize, 0, Math.PI*2);
           ctx.fill();
       }
-      // Star fragments
       for(let i=0; i<3; i++) {
         const angle = gameTime * (0.8 + i*0.2) + i * Math.PI * 0.7;
         const fragX = Math.cos(angle) * orbitRadius * 0.8;
         const fragY = -crownBaseH * 0.1 + Math.sin(angle * 0.6) * crownBaseH * 0.5;
         const fragSize = pH * 0.015;
         ctx.fillStyle = metallicGold;
-        ctx.beginPath(); // Simple square fragment
+        ctx.beginPath(); 
         ctx.rect(fragX - fragSize/2, fragY - fragSize/2, fragSize, fragSize);
         ctx.fill();
       }
 
-      // Focal crystal (pulsing)
       const pulse = 0.7 + Math.sin(gameTime * 2) * 0.3;
       ctx.fillStyle = hexToRgba(focalCrystalColor, pulse);
       ctx.shadowColor = focalCrystalColor; ctx.shadowBlur = 10 * pulse;
       const crystalH = crownBaseH * 1.5;
       const crystalW = crownBaseW * 0.15;
       ctx.beginPath();
-      ctx.moveTo(0, -crystalH); // Tip
+      ctx.moveTo(0, -crystalH); 
       ctx.lineTo(-crystalW, -crownBaseH * 0.2);
       ctx.lineTo(crystalW, -crownBaseH * 0.2);
       ctx.closePath();
@@ -355,24 +342,22 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       break;
       
-    case 'hat_basic_cap': // Star Voyager's Hood - NEW DESIGN (replaces default cap)
-        const hoodH = baseHatHeight * 1.1; // Hood covers more
+    case 'hat_basic_cap': 
+        const hoodH = baseHatHeight * 1.1; 
         const hoodW = baseHatWidth * 0.9;
-        const hoodColor = '#3C366B'; // Deep Indigo
-        const hoodGlowColor = '#93C5FD'; // Light Blue
-        hatDrawY += pH * 0.05; // Adjust Y to sit properly as a hood
+        const hoodColor = '#3C366B'; 
+        const hoodGlowColor = '#93C5FD'; 
+        hatDrawY += pH * 0.05; 
 
-        // Main hood shape
         ctx.fillStyle = hoodColor;
         ctx.beginPath();
-        ctx.moveTo(-hoodW * 0.5, -hoodH * 0.8); // Top back left
-        ctx.quadraticCurveTo(0, -hoodH * 0.95, hoodW * 0.5, -hoodH * 0.8); // Top curve
-        ctx.lineTo(hoodW * 0.4, hoodH * 0.1); // Bottom right opening edge
-        ctx.quadraticCurveTo(0, hoodH * 0.25, -hoodW * 0.4, hoodH * 0.1); // Bottom opening curve
+        ctx.moveTo(-hoodW * 0.5, -hoodH * 0.8); 
+        ctx.quadraticCurveTo(0, -hoodH * 0.95, hoodW * 0.5, -hoodH * 0.8); 
+        ctx.lineTo(hoodW * 0.4, hoodH * 0.1); 
+        ctx.quadraticCurveTo(0, hoodH * 0.25, -hoodW * 0.4, hoodH * 0.1); 
         ctx.closePath();
         ctx.fill();
 
-        // Drape over shoulders slightly (optional detail)
         ctx.beginPath();
         ctx.moveTo(-hoodW * 0.35, hoodH * 0.05);
         ctx.quadraticCurveTo(-hoodW * 0.45, hoodH * 0.3, -hoodW*0.25, hoodH * 0.2);
@@ -382,18 +367,15 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        // Glowing trim or constellation
         ctx.strokeStyle = hoodGlowColor;
         ctx.lineWidth = pH * 0.015;
         ctx.shadowColor = hoodGlowColor; ctx.shadowBlur = 5;
         
-        // Trim around opening
         ctx.beginPath();
         ctx.moveTo(hoodW * 0.4, hoodH * 0.1); 
         ctx.quadraticCurveTo(0, hoodH * 0.25, -hoodW * 0.4, hoodH * 0.1);
         ctx.stroke();
 
-        // Simple constellation (e.g., Orion's belt dots)
         const starSizeHood = pH * 0.01;
         ctx.fillStyle = hoodGlowColor;
         const constX = -hoodW * 0.2; 
@@ -405,7 +387,7 @@ export function drawHatCanvas(ctx: CanvasRenderingContext2D, hat: HatItem, playe
         ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
       break;
 
-    default: // Fallback if an unknown hat ID is somehow used
+    default: 
       const capH_default = baseHatHeight * 0.65;
       const capW_default = baseHatWidth * 0.75;
       ctx.fillStyle = primarySpaceColor;
@@ -468,9 +450,9 @@ export function drawStaffCanvas(
   ctx.translate(handGlobalX, handGlobalY); 
   ctx.rotate(staffAngle); 
 
-  let shaftColor = '#4A4A4A'; // Dark metallic
-  let tipPrimaryColor = staff.projectileColor || '#00FFFF'; // Use staff's projectile color
-  let tipAccentColor = staff.projectileGlowColor || '#FFFFFF'; // Use staff's glow color or default white
+  let shaftColor = '#4A4A4A'; 
+  let tipPrimaryColor = staff.projectileColor || '#00FFFF'; 
+  let tipAccentColor = staff.projectileGlowColor || '#FFFFFF'; 
   let tipShape: 'orb' | 'crystal_cluster' | 'plasma_core' | 'nebula_swirl' | 'comet_head' | 'black_hole' = 'orb';
 
   switch (staff.id) {
@@ -488,7 +470,7 @@ export function drawStaffCanvas(
   ctx.roundRect(handRadiusFactor*0.4, -staffWidth / 2, staffLength, staffWidth, staffWidth/3); 
   ctx.fill();
   
-  ctx.fillStyle = `rgba(0, 255, 255, ${0.4 + Math.sin( (staff.id.charCodeAt(0) || 0) * 0.1 + gameTime*0) *0.1})`; // Static or slow pulse
+  ctx.fillStyle = `rgba(0, 255, 255, ${0.4 + Math.sin( (staff.id.charCodeAt(0) || 0) * 0.1 + gameTime*0) *0.1})`; 
   for(let i=0; i<3; i++){
     const runeX = staffLength * (0.2 + i*0.25);
     const runeY = 0;
@@ -515,9 +497,9 @@ export function drawStaffCanvas(
     }
   } else if (tipShape === 'crystal_cluster') {
     for(let i=0; i<4; i++){
-        ctx.fillStyle = hexToRgba(tipPrimaryColor, 0.7 + ((i*17)%20)/100.0 *0.2); // Static alpha
-        const angle = ((i*67)%(Math.PI*200))/100.0; // Static angle
-        const cX = tipX + Math.cos(angle) * baseTipRadius * 0.3; const cY = tipY + Math.sin(angle) * baseTipRadius * 0.3; const cSize = baseTipRadius * (0.4 + ((i*31)%30)/100.0*0.3); // Static size
+        ctx.fillStyle = hexToRgba(tipPrimaryColor, 0.7 + ((i*17)%20)/100.0 *0.2); 
+        const angle = ((i*67)%(Math.PI*200))/100.0; 
+        const cX = tipX + Math.cos(angle) * baseTipRadius * 0.3; const cY = tipY + Math.sin(angle) * baseTipRadius * 0.3; const cSize = baseTipRadius * (0.4 + ((i*31)%30)/100.0*0.3); 
         ctx.beginPath(); ctx.moveTo(cX, cY - cSize); ctx.lineTo(cX + cSize*0.6, cY + cSize*0.3); ctx.lineTo(cX - cSize*0.6, cY + cSize*0.3); ctx.closePath(); ctx.fill();
     }
   } else if (tipShape === 'plasma_core') {
@@ -526,8 +508,8 @@ export function drawStaffCanvas(
   } else if (tipShape === 'nebula_swirl') {
     const nebulaColorsStaff = ['#E74C3C', '#8E44AD', '#3498DB', '#1ABC9C', '#F1C40F'];
     for(let i=0; i<3; i++){
-        ctx.fillStyle = hexToRgba(nebulaColorsStaff[i % nebulaColorsStaff.length], 0.3 + ((i*29)%20)/100.0 *0.2); // Static alpha
-        const angle = ( ((staff.id.charCodeAt(2)||0)*i*11) % (Math.PI*200) ) /100.0; // Static angle
+        ctx.fillStyle = hexToRgba(nebulaColorsStaff[i % nebulaColorsStaff.length], 0.3 + ((i*29)%20)/100.0 *0.2); 
+        const angle = ( ((staff.id.charCodeAt(2)||0)*i*11) % (Math.PI*200) ) /100.0; 
         const radius = baseTipRadius * (0.5 + i*0.2);
         ctx.beginPath(); ctx.arc(tipX + Math.cos(angle)*radius*0.2, tipY + Math.sin(angle)*radius*0.2, radius, 0, Math.PI*2); ctx.fill();
     }
@@ -546,79 +528,139 @@ export function drawStaffCanvas(
 }
 
 export function drawProjectileCanvas(ctx: CanvasRenderingContext2D, projectile: Projectile, gameTime: number) {
-  const centerX = projectile.x + projectile.width / 2;
-  const centerY = projectile.y + projectile.height / 2;
-  
-  let baseRadiusCalculation = Math.min(projectile.width, projectile.height) / 2 * 1.1; 
-
   ctx.save();
-  ctx.translate(centerX, centerY);
-  const angle = Math.atan2(projectile.vy || 0, projectile.vx || 0);
-  ctx.rotate(angle);
-
-  const coreColor = projectile.color;
-  const isDarkCore = isColorDark(coreColor);
-  const glowColor = projectile.glowEffectColor || (isDarkCore ? '#00FFFF' : coreColor); // Default bright cyan glow for dark cores if no specific glow color
   
-  if (projectile.owner === 'player' && (projectile.appliedEffectType === 'standard' || projectile.appliedEffectType === 'thunder_staff')) {
-    baseRadiusCalculation *= 0.7;
-  }
-  const radius = baseRadiusCalculation;
+  if (projectile.appliedEffectType === 'boss_laser') {
+    const originX = projectile.x;
+    const originY = projectile.y;
+    const thickness = projectile.width;
+    const currentVisualLength = projectile.currentLength || 0;
+    const laserAngle = projectile.angle || 0;
 
-  const coreGlowColorForWhiteCore = '#FFFFFF'; // Used if primary effect is white-ish
+    ctx.translate(originX, originY);
+    ctx.rotate(laserAngle);
 
-  // Determine shadow settings based on darkness
-  if (isDarkCore) {
-      ctx.shadowColor = hexToRgba(glowColor, 0.8);
-      ctx.shadowBlur = radius * 1.5; // More pronounced glow for dark cores
+    // Main Beam
+    ctx.shadowColor = BOSS_LASER_GLOW_COLOR;
+    ctx.shadowBlur = thickness * 1.5;
+    ctx.fillStyle = hexToRgba(BOSS_LASER_GLOW_COLOR, 0.4);
+    ctx.fillRect(0, -thickness * 0.75 / 2, currentVisualLength, thickness * 0.75);
+    ctx.fillStyle = BOSS_LASER_COLOR;
+    ctx.fillRect(0, -thickness / 2, currentVisualLength, thickness);
+    ctx.fillStyle = hexToRgba('#FFFFFF', 0.8);
+    ctx.fillRect(0, -thickness * 0.15 / 2, currentVisualLength, thickness * 0.15);
+    ctx.shadowColor = 'transparent'; 
+    ctx.shadowBlur = 0;
+
+    // Advancing Tip Effect (only if laser is extending)
+    if (currentVisualLength > 0 && (projectile.maxLength === undefined || currentVisualLength < projectile.maxLength)) {
+        const tipPositionX = currentVisualLength;
+        const tipRadius = thickness * 0.6; // Tip slightly wider than core beam
+        const tipGlowRadius = tipRadius * 1.5;
+
+        // Pulsing Glow at the tip
+        const pulseFactor = 0.8 + Math.sin(gameTime * 30) * 0.2;
+        ctx.fillStyle = hexToRgba(BOSS_LASER_GLOW_COLOR, 0.7 * pulseFactor);
+        ctx.beginPath();
+        ctx.arc(tipPositionX, 0, tipGlowRadius * pulseFactor, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bright Core at the tip
+        ctx.fillStyle = hexToRgba('#FFFFFF', 0.95 * pulseFactor);
+        ctx.beginPath();
+        ctx.arc(tipPositionX, 0, tipRadius * pulseFactor * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Small flickering sparks/crackles
+        const numSparks = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < numSparks; i++) {
+            if (Math.random() < 0.7) { // Chance to draw each spark per frame
+                const sparkAngleOffset = (Math.random() - 0.5) * Math.PI * 0.4; // Spread sparks slightly
+                const sparkLength = thickness * (0.2 + Math.random() * 0.5);
+                const sparkThickness = thickness * (0.05 + Math.random() * 0.1);
+                const sparkOpacity = 0.5 + Math.random() * 0.4;
+
+                ctx.strokeStyle = hexToRgba('#FFFFFF', sparkOpacity * pulseFactor);
+                ctx.lineWidth = sparkThickness;
+                ctx.beginPath();
+                ctx.moveTo(tipPositionX, 0); // Start from tip center
+                ctx.lineTo(
+                    tipPositionX + Math.cos(sparkAngleOffset) * sparkLength,
+                    Math.sin(sparkAngleOffset) * sparkLength
+                );
+                ctx.stroke();
+            }
+        }
+    }
   } else {
-      ctx.shadowColor = hexToRgba(coreColor, 0.7); // Standard shadow for light cores
-      ctx.shadowBlur = radius * 0.8;
-  }
+    // Existing logic for other projectiles
+    const centerX = projectile.x + projectile.width / 2;
+    const centerY = projectile.y + projectile.height / 2;
+    let baseRadiusCalculation = Math.min(projectile.width, projectile.height) / 2 * 1.1; 
 
-  // Draw projectile core
-  ctx.fillStyle = coreColor;
+    ctx.translate(centerX, centerY);
+    const angle = Math.atan2(projectile.vy || 0, projectile.vx || 0);
+    ctx.rotate(angle);
 
-  switch(projectile.appliedEffectType) {
-    case 'star_shard': 
-      ctx.fillStyle = coreColor; // Already set by staff to #F1C40F
-      ctx.beginPath();
-      for (let i = 0; i < 5 * 2; i++) { const r = (i % 2 === 0) ? radius : radius * 0.5; const a = Math.PI / 5 * i - Math.PI / 2; ctx.lineTo(r * Math.cos(a), r * Math.sin(a)); }
-      ctx.closePath(); ctx.fill(); break;
-    case 'plasma_ball': 
-      const plasmaGrad = ctx.createRadialGradient(0,0,0, 0,0,radius); 
-      plasmaGrad.addColorStop(0, hexToRgba(isDarkCore ? glowColor : coreGlowColorForWhiteCore, 0.9)); 
-      plasmaGrad.addColorStop(0.5, hexToRgba(coreColor, 0.8)); 
-      plasmaGrad.addColorStop(1, hexToRgba(glowColor, 0.4));
-      ctx.fillStyle = plasmaGrad; ctx.beginPath(); ctx.arc(0,0,radius,0,Math.PI*2); ctx.fill(); break;
-    case 'comet_fragment':
-      ctx.fillStyle = coreColor; ctx.beginPath(); ctx.ellipse(0,0, radius, radius*0.6, 0,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle = hexToRgba(glowColor, 0.5); ctx.beginPath(); ctx.moveTo(-radius*0.8,0); ctx.lineTo(-radius*1.5, -radius*0.3); ctx.lineTo(-radius*1.5, radius*0.3); ctx.closePath(); ctx.fill(); break;
-    case 'shadow_bolt': // Already dark, glow handles visibility
-    case 'trident': // Usually bright
-    case 'frozen_tip': // Usually bright
-    case 'boomstaff': // Usually bright
-    case 'emerald_homing': // Usually bright
-    case 'thunder_staff': // Usually bright yellow
-    default: // Standard
-      const coreGrad = ctx.createRadialGradient(0,0,0, 0,0,radius); 
-      coreGrad.addColorStop(0, hexToRgba(isDarkCore ? glowColor : coreGlowColorForWhiteCore, 0.9)); // Bright center
-      coreGrad.addColorStop(0.6, hexToRgba(coreColor, 0.8)); // Main color
-      coreGrad.addColorStop(1, hexToRgba(glowColor, isDarkCore ? 0.6 : 0.4)); // Outer glow part
-      ctx.fillStyle = coreGrad; ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill(); break;
+    const coreColor = projectile.color;
+    const isDarkCore = isColorDark(coreColor);
+    const glowColor = projectile.glowEffectColor || (isDarkCore ? '#00FFFF' : coreColor); 
+    
+    if (projectile.owner === 'player' && (projectile.appliedEffectType === 'standard' || projectile.appliedEffectType === 'thunder_staff')) {
+      baseRadiusCalculation *= 0.7;
+    }
+    const radius = baseRadiusCalculation;
+    const coreGlowColorForWhiteCore = '#FFFFFF'; 
+
+    if (isDarkCore) {
+        ctx.shadowColor = hexToRgba(glowColor, 0.8);
+        ctx.shadowBlur = radius * 1.5; 
+    } else {
+        ctx.shadowColor = hexToRgba(coreColor, 0.7); 
+        ctx.shadowBlur = radius * 0.8;
+    }
+
+    ctx.fillStyle = coreColor;
+
+    switch(projectile.appliedEffectType) {
+      case 'star_shard': 
+        ctx.fillStyle = coreColor; 
+        ctx.beginPath();
+        for (let i = 0; i < 5 * 2; i++) { const r = (i % 2 === 0) ? radius : radius * 0.5; const a = Math.PI / 5 * i - Math.PI / 2; ctx.lineTo(r * Math.cos(a), r * Math.sin(a)); }
+        ctx.closePath(); ctx.fill(); break;
+      case 'plasma_ball': 
+        const plasmaGrad = ctx.createRadialGradient(0,0,0, 0,0,radius); 
+        plasmaGrad.addColorStop(0, hexToRgba(isDarkCore ? glowColor : coreGlowColorForWhiteCore, 0.9)); 
+        plasmaGrad.addColorStop(0.5, hexToRgba(coreColor, 0.8)); 
+        plasmaGrad.addColorStop(1, hexToRgba(glowColor, 0.4));
+        ctx.fillStyle = plasmaGrad; ctx.beginPath(); ctx.arc(0,0,radius,0,Math.PI*2); ctx.fill(); break;
+      case 'comet_fragment':
+        ctx.fillStyle = coreColor; ctx.beginPath(); ctx.ellipse(0,0, radius, radius*0.6, 0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = hexToRgba(glowColor, 0.5); ctx.beginPath(); ctx.moveTo(-radius*0.8,0); ctx.lineTo(-radius*1.5, -radius*0.3); ctx.lineTo(-radius*1.5, radius*0.3); ctx.closePath(); ctx.fill(); break;
+      case 'shadow_bolt': 
+      case 'trident': 
+      case 'frozen_tip': 
+      case 'boomstaff': 
+      case 'emerald_homing': 
+      case 'thunder_staff': 
+      default: 
+        const coreGrad = ctx.createRadialGradient(0,0,0, 0,0,radius); 
+        coreGrad.addColorStop(0, hexToRgba(isDarkCore ? glowColor : coreGlowColorForWhiteCore, 0.9)); 
+        coreGrad.addColorStop(0.6, hexToRgba(coreColor, 0.8)); 
+        coreGrad.addColorStop(1, hexToRgba(glowColor, isDarkCore ? 0.6 : 0.4)); 
+        ctx.fillStyle = coreGrad; ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill(); break;
+    }
   }
   
-  ctx.restore(); // Restore before drawing trail
+  ctx.restore(); 
 
-  // Trail
   if (projectile.owner === 'player' && projectile.trailPoints && projectile.trailPoints.length > 0) {
-    const trailBaseColor = projectile.glowEffectColor || projectile.color; // Prefer glow color for trail visibility
+    const trailBaseColor = projectile.glowEffectColor || projectile.color; 
     projectile.trailPoints.forEach(tp => {
         const alpha = (tp.life / tp.initialLife) * 0.5; 
         const trailRadius = tp.size * (tp.life / tp.initialLife);
         ctx.fillStyle = hexToRgba(trailBaseColor, alpha);
         ctx.beginPath();
-        // Trail points are in global coordinates, no need to translate back and forth here
         ctx.arc(tp.x, tp.y, trailRadius, 0, Math.PI * 2); 
         ctx.fill();
     });
@@ -646,7 +688,6 @@ export function drawGroundPlatformCanvas(ctx: CanvasRenderingContext2D, platform
   for (let i = 0; i <= segments; i++) {
     const segX = x + (width / segments) * i;
     const baseY = y + undulationAmount;
-    // Use platform ID or segment index for deterministic pseudo-randomness if needed, or keep it smooth
     const undulation = Math.sin(segX * 0.02 + i * 0.5 + (platform.id.charCodeAt(1) || 0) * 0.05) * undulationAmount * 0.5 + Math.sin(i*0.9) * undulationAmount * 0.2;
     if (i === 0) {
       ctx.lineTo(segX, baseY + undulation);
@@ -672,7 +713,7 @@ export function drawGroundPlatformCanvas(ctx: CanvasRenderingContext2D, platform
   const numCraters = Math.floor(width / 180); 
   for (let i = 0; i < numCraters; i++) {
     const craterSeed = (platform.id.charCodeAt(3) || 1) * (i + 1);
-    const craterX = x + ((craterSeed * 37) % 70 + 15) / 100 * width; // Deterministic placement
+    const craterX = x + ((craterSeed * 37) % 70 + 15) / 100 * width; 
     const craterRadius = 15 + ((craterSeed * 53) % 250) / 10;
     const platformTopYAtCrater = y + undulationAmount + Math.sin(craterX * 0.02 + (platform.id.charCodeAt(1) || 0) * 0.05) * undulationAmount * 0.5;
     const craterY = platformTopYAtCrater + craterRadius * 0.3 + ((craterSeed * 61) % 100) / 100 * height * 0.1;
@@ -690,13 +731,13 @@ export function drawGroundPlatformCanvas(ctx: CanvasRenderingContext2D, platform
   ctx.shadowColor = '#00FFFF';
   for (let i = 0; i < 7; i++) {
     const crystalSeed = (platform.id.charCodeAt(4) || 1) * (i + 1);
-    const crystalX = x + ((crystalSeed * 29) % 70 + 10) / 100 * width; // Deterministic placement
+    const crystalX = x + ((crystalSeed * 29) % 70 + 10) / 100 * width; 
     const platformTopYAtCrystal = y + undulationAmount + Math.sin(crystalX * 0.02 + (platform.id.charCodeAt(1) || 0) * 0.05) * undulationAmount * 0.5;
     const crystalY = platformTopYAtCrystal + height * (0.2 + ((crystalSeed * 41)%50)/100.0 );
     const crystalSize = 4 + ((crystalSeed * 13)%70)/10.0;
     
-    ctx.fillStyle = `rgba(0, 200, 200, ${0.4 + ((crystalSeed*7)%20)/100.0*0.2})`; // Deterministic alpha
-    ctx.shadowBlur = 4 + ((crystalSeed*3)%40)/10.0; // Deterministic blur
+    ctx.fillStyle = `rgba(0, 200, 200, ${0.4 + ((crystalSeed*7)%20)/100.0*0.2})`; 
+    ctx.shadowBlur = 4 + ((crystalSeed*3)%40)/10.0; 
     ctx.beginPath();
     ctx.moveTo(crystalX, crystalY - crystalSize);
     ctx.lineTo(crystalX + crystalSize*0.6, crystalY);
@@ -725,7 +766,7 @@ export function drawDynamicPlatformCanvas(ctx: CanvasRenderingContext2D, platfor
   ctx.beginPath();
 
   const points = [];
-  const numSegments = 6 + Math.floor((platform.id.charCodeAt(0) || 0) % 5); // 6 to 10 segments
+  const numSegments = 6 + Math.floor((platform.id.charCodeAt(0) || 0) % 5); 
   const baseRadiusX = width / 2;
   const baseRadiusY = height / 2;
   const centerX = x + baseRadiusX;
@@ -734,8 +775,7 @@ export function drawDynamicPlatformCanvas(ctx: CanvasRenderingContext2D, platfor
   for (let i = 0; i < numSegments; i++) {
     const angle = (i / numSegments) * Math.PI * 2;
     const charCodeSeed = platform.id.charCodeAt(i % platform.id.length) || (70 + i);
-    // More pronounced deformation
-    const radiusXDeform = baseRadiusX * (0.75 + ((charCodeSeed * 13) % 50) / 100); // 0.75 to 1.25 of base
+    const radiusXDeform = baseRadiusX * (0.75 + ((charCodeSeed * 13) % 50) / 100); 
     const radiusYDeform = baseRadiusY * (0.75 + ((charCodeSeed * 17) % 50) / 100);
     points.push({
       x: centerX + Math.cos(angle) * radiusXDeform,
@@ -750,8 +790,7 @@ export function drawDynamicPlatformCanvas(ctx: CanvasRenderingContext2D, platfor
     const charCodeSeed1 = platform.id.charCodeAt((i * 2) % platform.id.length) || (70 + i * 2);
     const charCodeSeed2 = platform.id.charCodeAt((i * 2 + 1) % platform.id.length) || (70 + i * 2 + 1);
 
-    // Make control points further out for more curve
-    const cp1x = p1.x + (p2.x - p1.x) * 0.3 + (((charCodeSeed1 * 23) % 40) - 20) * 0.3; // More aggressive offset
+    const cp1x = p1.x + (p2.x - p1.x) * 0.3 + (((charCodeSeed1 * 23) % 40) - 20) * 0.3; 
     const cp1y = p1.y + (p2.y - p1.y) * 0.7 + (((charCodeSeed1 * 29) % 40) - 20) * 0.3;
     const cp2x = p1.x + (p2.x - p1.x) * 0.7 - (((charCodeSeed2 * 31) % 40) - 20) * 0.3;
     const cp2y = p1.y + (p2.y - p1.y) * 0.3 - (((charCodeSeed2 * 37) % 40) - 20) * 0.3;
@@ -763,13 +802,13 @@ export function drawDynamicPlatformCanvas(ctx: CanvasRenderingContext2D, platfor
 
   ctx.strokeStyle = crackColor; 
   ctx.lineWidth = 1.5 + ((platform.id.charCodeAt(0) || 0 * 3) % 10) / 10.0; 
-  for (let i=0; i < 2 + ((platform.id.charCodeAt(1) || 0) % 2); i++) { // 2 or 3 cracks
+  for (let i=0; i < 2 + ((platform.id.charCodeAt(1) || 0) % 2); i++) { 
       ctx.beginPath();
       const crackSeed = (platform.id.charCodeAt(i + 2) || 70) * (i + 1);
       const startX = x + width * (0.1 + ((crackSeed * 11) % 800) / 1000.0);
       const startY = y + height * (0.1 + ((crackSeed * 13) % 800) / 1000.0);
       ctx.moveTo(startX, startY);
-      for(let j=0; j<2; j++){ // More jagged cracks
+      for(let j=0; j<2; j++){ 
         const endX = startX + (((crackSeed*(j+1)*17)%100)-50)/100.0 * width * (0.2 + Math.random()*0.15);
         const endY = startY + (((crackSeed*(j+1)*19)%100)-50)/100.0 * height * (0.2 + Math.random()*0.15);
         ctx.quadraticCurveTo(
@@ -781,12 +820,12 @@ export function drawDynamicPlatformCanvas(ctx: CanvasRenderingContext2D, platfor
       ctx.stroke();
   }
 
-  const numCrystals = 1 + ((platform.id.charCodeAt(0) || 0) % 3); // 1 to 3 crystals
+  const numCrystals = 1 + ((platform.id.charCodeAt(0) || 0) % 3); 
   ctx.shadowColor = crystalGlow;
   for (let i = 0; i < numCrystals; i++) {
     const crystalSeed = (platform.id.charCodeAt(i + 4) || 70) * (i + 1);
-    ctx.fillStyle = `rgba(186, 85, 211, ${0.5 + ((crystalSeed * 7)%25)/100.0})`; // Deterministic alpha
-    ctx.shadowBlur = 3 + ((crystalSeed * 5)%30)/10.0; // Deterministic blur
+    ctx.fillStyle = `rgba(186, 85, 211, ${0.5 + ((crystalSeed * 7)%25)/100.0})`; 
+    ctx.shadowBlur = 3 + ((crystalSeed * 5)%30)/10.0; 
     const crystalSize = 4 + ((crystalSeed * 3)%50)/10.0;
     const cX = x + crystalSize + ((crystalSeed * 23) % (width - crystalSize*20))/10.0;
     const cY = y + crystalSize + ((crystalSeed * 29) % (height - crystalSize*20))/10.0;
@@ -817,7 +856,7 @@ export function drawDynamicPlatformCanvas(ctx: CanvasRenderingContext2D, platfor
 export function drawCyclopsAlienCanvas(ctx: CanvasRenderingContext2D, enemy: Enemy, effectiveEnemyColor: string) {
     const bodyColor = '#483D8B'; const eyeColor = '#FFD700'; const pupilColor = '#000000'; const antennaColor = '#8A2BE2';
     const w = enemy.width; const h = enemy.height;
-    const pulseFactor = 0.15 + Math.sin( (enemy.id.charCodeAt(0) || 0) *0.1 + Date.now()*0.000) * 0.1; // Static based on ID
+    const pulseFactor = 0.15 + Math.sin( (enemy.id.charCodeAt(0) || 0) *0.1 + Date.now()*0.000) * 0.1; 
     ctx.fillStyle = hexToRgba(antennaColor, 0.2 + pulseFactor * 0.5);
     ctx.beginPath(); ctx.ellipse(0, h * 0.1, w * 0.45, h * 0.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = hexToRgba(effectiveEnemyColor !== enemy.color ? effectiveEnemyColor : bodyColor, 1);
@@ -830,7 +869,7 @@ export function drawCyclopsAlienCanvas(ctx: CanvasRenderingContext2D, enemy: Ene
 
 export function drawGreenClassicAlienCanvas(ctx: CanvasRenderingContext2D, enemy: Enemy, effectiveEnemyColor: string) {
     const headColor = '#2E8B57'; const eyeColor = '#1C1C1C'; const w = enemy.width; const h = enemy.height;
-    const pulseFactor = 0.15 + Math.sin( (enemy.id.charCodeAt(1) || 0) *0.1 + Date.now()*0.000) * 0.1; // Static based on ID
+    const pulseFactor = 0.15 + Math.sin( (enemy.id.charCodeAt(1) || 0) *0.1 + Date.now()*0.000) * 0.1; 
     ctx.fillStyle = hexToRgba('#7FFF00', 0.15 + pulseFactor * 0.5);
     ctx.beginPath(); ctx.ellipse(0, 0, w * 0.45, h * 0.5, 0, 0, Math.PI * 2);  ctx.fill();
     ctx.fillStyle = hexToRgba(effectiveEnemyColor !== enemy.color ? effectiveEnemyColor : headColor, 1);
@@ -846,8 +885,8 @@ export function drawSpikyAlienCanvas(ctx: CanvasRenderingContext2D, enemy: Enemy
     const numSpikes = 8; ctx.fillStyle = hexToRgba(effectiveEnemyColor !== enemy.color ? effectiveEnemyColor : spikeColor, 0.9);
     ctx.shadowColor = spikeColor; ctx.shadowBlur = 5;
     for (let i = 0; i < numSpikes; i++) {
-        const angle = (i / numSpikes) * Math.PI * 2 + ( (enemy.id.charCodeAt(0) || 0) * 0.01 ); // Static rotation offset
-        const spikeLength = coreRadius * (0.8 + Math.sin( (enemy.id.charCodeAt(1) || 0) *0.1 + i) * 0.1); // Static length variation
+        const angle = (i / numSpikes) * Math.PI * 2 + ( (enemy.id.charCodeAt(0) || 0) * 0.01 ); 
+        const spikeLength = coreRadius * (0.8 + Math.sin( (enemy.id.charCodeAt(1) || 0) *0.1 + i) * 0.1); 
         const spikeWidth = coreRadius * 0.3; ctx.save(); ctx.rotate(angle);
         ctx.beginPath(); ctx.moveTo(coreRadius * 0.8, 0); ctx.lineTo(coreRadius * 0.8 + spikeLength, -spikeWidth / 2); ctx.lineTo(coreRadius * 0.8 + spikeLength, spikeWidth / 2); ctx.closePath(); ctx.fill(); ctx.restore();
     }
@@ -869,8 +908,8 @@ export function drawMultiTentacleAlienCanvas(ctx: CanvasRenderingContext2D, enem
         const angle = (Math.PI / (numTentacles -1)) * i - Math.PI/2 + (Math.PI / (2*(numTentacles-1))); 
         const offsetX = Math.cos(angle * 1.5 + Math.PI/2) * bodyRadiusX * 0.6; 
         const offsetY = Math.sin(angle * 1.5 + Math.PI/2) * bodyRadiusY * 0.3 + bodyRadiusY*0.8;
-        const tentacleWidth = w * (0.07 + Math.sin( (enemy.id.charCodeAt(i%enemy.id.length) || 0) *0.1 + i*0.5)*0.01); // Static width
-        const tentacleLength = tentacleLengthBase * (0.9 + Math.sin( (enemy.id.charCodeAt((i+1)%enemy.id.length) || 0) *0.1 + i)*0.1); // Static length
+        const tentacleWidth = w * (0.07 + Math.sin( (enemy.id.charCodeAt(i%enemy.id.length) || 0) *0.1 + i*0.5)*0.01); 
+        const tentacleLength = tentacleLengthBase * (0.9 + Math.sin( (enemy.id.charCodeAt((i+1)%enemy.id.length) || 0) *0.1 + i)*0.1); 
         ctx.beginPath(); ctx.moveTo(offsetX, offsetY - tentacleLength*0.2);
         ctx.quadraticCurveTo(offsetX + Math.sin( (enemy.id.charCodeAt((i+2)%enemy.id.length) || 0) *0.1 +i) * tentacleWidth, offsetY + tentacleLength * 0.5, offsetX, offsetY + tentacleLength); 
         ctx.quadraticCurveTo(offsetX - Math.sin( (enemy.id.charCodeAt((i+3)%enemy.id.length) || 0) *0.1 +i) * tentacleWidth, offsetY + tentacleLength * 0.5, offsetX, offsetY - tentacleLength*0.2); 
@@ -885,8 +924,8 @@ export function drawThreeEyedBossAlienCanvas(ctx: CanvasRenderingContext2D, enem
     const bodyBaseColor = '#4B0082'; const eyeColor = '#00FFFF'; const pupilColor = '#191970'; const toothColor = '#E0FFFF'; const hornColor = '#8A2BE2'; 
     const w = enemy.width; const h = enemy.height; const bodyRadius = Math.min(w,h) * 0.42;
     let currentBodyColor = effectiveEnemyColor !== enemy.color ? effectiveEnemyColor : bodyBaseColor;
-    if (enemy.inFuryMode) { currentBodyColor = '#FF00FF'; ctx.shadowColor = '#FF00FF'; ctx.shadowBlur = 20 + Math.sin(Date.now()*0.00) * 5;  // Static shadowBlur for fury
-    } else { ctx.shadowColor = '#00FFFF'; ctx.shadowBlur = 10 + Math.sin( (enemy.id.charCodeAt(0) || 0) * 0.1 + Date.now()*0.000)*3;} // Static shadowBlur
+    if (enemy.inFuryMode) { currentBodyColor = '#FF00FF'; ctx.shadowColor = '#FF00FF'; ctx.shadowBlur = 20 + Math.sin(Date.now()*0.00) * 5;  
+    } else { ctx.shadowColor = '#00FFFF'; ctx.shadowBlur = 10 + Math.sin( (enemy.id.charCodeAt(0) || 0) * 0.1 + Date.now()*0.000)*3;} 
     ctx.fillStyle = currentBodyColor; ctx.beginPath(); ctx.arc(0, 0, bodyRadius, 0, Math.PI * 2); ctx.fill();
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
     ctx.fillStyle = hornColor; const hornWidth = bodyRadius * 0.3; const hornHeight = bodyRadius * 0.6;
@@ -901,7 +940,7 @@ export function drawThreeEyedBossAlienCanvas(ctx: CanvasRenderingContext2D, enem
     ctx.beginPath(); ctx.arc(-sideEyeX, sideEyeY, eyeRadius * 0.9, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(sideEyeX, sideEyeY, eyeRadius * 0.9, 0, Math.PI * 2); ctx.fill();
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
     ctx.fillStyle = pupilColor; ctx.beginPath(); ctx.arc(0, eyeY, eyeRadius * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(-sideEyeX + eyeRadius*0.05, sideEyeY, eyeRadius * 0.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(sideEyeX - eyeRadius*0.05, sideEyeY, eyeRadius * 0.5, 0, Math.PI * 2); ctx.fill();
-    if (enemy.inFuryMode) { // Static particles for fury
+    if (enemy.inFuryMode) { 
       for (let i = 0; i < 5; i++) {
           ctx.fillStyle = `rgba(255, 0, 255, ${0.4 + ((enemy.id.charCodeAt(i%enemy.id.length)||0)*13 % 40)/100.0 })`;
           const angle = ((enemy.id.charCodeAt((i+1)%enemy.id.length)||0)*23 % (Math.PI*200))/100.0;
@@ -917,22 +956,20 @@ export function drawHealingDroneCanvas(ctx: CanvasRenderingContext2D, enemy: Ene
     const h = enemy.height;
     const coreRadius = Math.min(w, h) * 0.4;
 
-    const baseColor1 = '#38761D'; // Darker Green
-    const baseColor2 = '#6AA84F'; // Lighter Green
-    const antennaColor = '#A9D18E'; // Pale Green
-    const lensColor = '#D9EAD3'; // Very Light Green/Off-white
+    const baseColor1 = '#38761D'; 
+    const baseColor2 = '#6AA84F'; 
+    const antennaColor = '#A9D18E'; 
+    const lensColor = '#D9EAD3'; 
 
-    // Blinking effect
     const blinkOn = Math.floor(gameTime * HEALING_DRONE_BLINK_SPEED) % 2 === 0;
     const bodyColor = blinkOn ? baseColor2 : baseColor1;
     const detailColor = blinkOn ? baseColor1 : baseColor2;
 
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
-    ctx.ellipse(0, 0, coreRadius, coreRadius * 0.75, 0, 0, Math.PI * 2); // Main body - flatter ellipse
+    ctx.ellipse(0, 0, coreRadius, coreRadius * 0.75, 0, 0, Math.PI * 2); 
     ctx.fill();
 
-    // Detail lines/panels
     ctx.strokeStyle = detailColor;
     ctx.lineWidth = w * 0.04;
     ctx.beginPath();
@@ -944,15 +981,13 @@ export function drawHealingDroneCanvas(ctx: CanvasRenderingContext2D, enemy: Ene
     ctx.lineTo(coreRadius * 0.4, coreRadius * 0.3);
     ctx.stroke();
 
-    // Antenna/Emitter
     ctx.fillStyle = antennaColor;
     ctx.beginPath();
-    ctx.arc(0, -coreRadius * 0.7, w * 0.1, 0, Math.PI * 2); // Small sphere at the top
+    ctx.arc(0, -coreRadius * 0.7, w * 0.1, 0, Math.PI * 2); 
     ctx.fill();
     
-    // "Lens" or central emitting point
     ctx.fillStyle = lensColor;
-    ctx.shadowColor = blinkOn ? '#B6D7A8' : '#769E6A'; // Soft glow based on blink state
+    ctx.shadowColor = blinkOn ? '#B6D7A8' : '#769E6A'; 
     ctx.shadowBlur = blinkOn ? 8 : 4;
     ctx.beginPath();
     ctx.arc(0, 0, coreRadius * 0.3, 0, Math.PI * 2);
@@ -960,7 +995,6 @@ export function drawHealingDroneCanvas(ctx: CanvasRenderingContext2D, enemy: Ene
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // Small "wings" or stabilizers
     const wingWidth = w * 0.3;
     const wingHeight = h * 0.15;
     ctx.fillStyle = detailColor;

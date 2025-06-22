@@ -1,4 +1,5 @@
 
+
 // gameLogic/rendering/entityRenderer.ts
 import {
     Player, Enemy, Projectile, Particle, ActiveLightningBolt, FloatingText,
@@ -10,7 +11,7 @@ import {
     drawMultiTentacleAlienCanvas, drawThreeEyedBossAlienCanvas, drawHealingDroneCanvas
 } from '../canvasArt';
 import { hexToRgba } from '../utils'; // Ensure this path is correct
-import { SPRITE_PIXEL_SIZE } from '../../constants'; // For particle effects, if needed
+import { SPRITE_PIXEL_SIZE, BOSS_LASER_CHARGE_TIME_MS } from '../../constants'; // For particle effects, if needed
 
 // Player and Accessories
 export function drawPlayerAndAccessories(
@@ -24,15 +25,15 @@ export function drawPlayerAndAccessories(
     allHats: Readonly<HatItem[]>,
     allStaffs: Readonly<StaffItem[]>
 ) {
-    ctx.save(); // Save before potential player alpha change for blinking
-    if (player.isInvincible && player.invincibilityDuration === 500) { // Standard hit invincibility
-        if (Math.floor(gameTime * 15) % 2 === 0) { // Blink effect
+    ctx.save(); 
+    if (player.isInvincible && player.invincibilityDuration === 500) { 
+        if (Math.floor(gameTime * 15) % 2 === 0) { 
             ctx.globalAlpha = 0.35;
         } else {
             ctx.globalAlpha = 0.85;
         }
     } else if (player.isInvincible && player.isDashing) {
-         ctx.globalAlpha = 0.6; // Slightly transparent during dash invincibility
+         ctx.globalAlpha = 0.6; 
     }
      else {
         ctx.globalAlpha = 1.0;
@@ -53,24 +54,24 @@ export function drawPlayerAndAccessories(
             drawStaffCanvas(ctx, staffItem, player, gameTime, mouseState, canvasRect, canvasWidth, canvasHeight);
         }
     }
-    ctx.restore(); // Restore alpha
+    ctx.restore(); 
 
     // Shield
     if (player.shieldMaxHp && typeof player.shieldCurrentHp === 'number' && player.shieldCurrentHp > 0) {
         const shieldCenterX = player.x + player.width / 2;
         const shieldCenterY = player.y + player.height / 2;
-        const shieldRadius = Math.max(player.width, player.height) * 0.7; // Shield radius based on player size
+        const shieldRadius = Math.max(player.width, player.height) * 0.7; 
         const shieldStrengthAlpha = 0.5 + (player.shieldCurrentHp / player.shieldMaxHp) * 0.5;
 
-        const pulse = Math.sin(gameTime * 5) * 0.1 + 0.9; // Pulsating effect
+        const pulse = Math.sin(gameTime * 5) * 0.1 + 0.9; 
         ctx.strokeStyle = `rgba(0, 220, 255, ${shieldStrengthAlpha * 0.9 * pulse})`;
-        ctx.lineWidth = 3 + Math.sin(gameTime * 5 + Math.PI / 2) * 1; // Pulsating line width
+        ctx.lineWidth = 3 + Math.sin(gameTime * 5 + Math.PI / 2) * 1; 
         ctx.shadowColor = `rgba(0, 220, 255, ${shieldStrengthAlpha * 0.7})`;
-        ctx.shadowBlur = 10 + Math.sin(gameTime * 5) * 3; // Pulsating shadow
+        ctx.shadowBlur = 10 + Math.sin(gameTime * 5) * 3; 
         ctx.beginPath();
         ctx.arc(shieldCenterX, shieldCenterY, shieldRadius, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; // Reset shadow
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; 
 
         const gradient = ctx.createRadialGradient(
             shieldCenterX, shieldCenterY, shieldRadius * 0.5,
@@ -82,7 +83,7 @@ export function drawPlayerAndAccessories(
         ctx.beginPath();
         ctx.arc(shieldCenterX, shieldCenterY, shieldRadius, 0, Math.PI * 2);
         ctx.fill();
-        ctx.lineWidth = 1; // Reset line width
+        ctx.lineWidth = 1; 
     }
 }
 
@@ -100,8 +101,8 @@ export function drawEnemies(
         let effectiveEnemyColor = enemy.color;
         const isChilled = enemy.statusEffects.some(se => se.type === 'chill' && se.duration > 0);
 
-        if (isChilled && enemy.enemyType !== 'healing_drone') effectiveEnemyColor = '#00FFFF'; // Cyan tint for chilled non-drones
-        if (enemy.isSummonedByBoss) effectiveEnemyColor = '#7777AA'; // Greyish purple for summoned minions
+        if (isChilled && enemy.enemyType !== 'healing_drone') effectiveEnemyColor = '#00FFFF'; 
+        if (enemy.isSummonedByBoss) effectiveEnemyColor = '#7777AA'; 
 
         ctx.save();
         ctx.translate(centerX, centerY);
@@ -114,22 +115,43 @@ export function drawEnemies(
             case 'multi_tentacle': drawMultiTentacleAlienCanvas(ctx, enemy, effectiveEnemyColor); break;
             case 'three_eyed_boss': drawThreeEyedBossAlienCanvas(ctx, enemy, effectiveEnemyColor); break;
             case 'healing_drone': drawHealingDroneCanvas(ctx, enemy, effectiveEnemyColor, gameTime); break;
-            default: // Fallback basic draw
+            default: 
                 ctx.fillStyle = effectiveEnemyColor;
                 ctx.fillRect(-enemy.width / 2, -enemy.height / 2, enemy.width, enemy.height);
                 break;
         }
+
+        // Boss Laser Charging Visual
+        if (enemy.enemyType === 'boss' && enemy.isChargingLaser && enemy.laserChargeTimer !== undefined) {
+            const chargeProgress = 1 - (enemy.laserChargeTimer / (BOSS_LASER_CHARGE_TIME_MS / 1000)); // 0 to 1
+            const chargeColor = `rgba(255, 0, 0, ${0.15 + chargeProgress * 0.5})`; // Fades in red, more subtle
+            const chargeRadius = enemy.width * (0.35 + chargeProgress * 0.45); // Starts smaller, grows larger
+            
+            ctx.fillStyle = chargeColor;
+            ctx.beginPath();
+            ctx.arc(0, 0, chargeRadius, 0, Math.PI * 2); // Drawn relative to translated boss center
+            ctx.fill();
+
+            // Pulsing outline for charging
+            const pulseIntensity = 0.5 + Math.sin(gameTime * 15 + chargeProgress * Math.PI) * 0.2; // Faster pulse as it charges
+            ctx.strokeStyle = `rgba(255, ${100 - chargeProgress * 50}, ${100 - chargeProgress * 50}, ${0.4 * pulseIntensity + chargeProgress * 0.3})`;
+            ctx.lineWidth = (2 + chargeProgress * 4) * pulseIntensity; // Line width also pulses and grows
+            ctx.beginPath();
+            ctx.arc(0, 0, chargeRadius * (1.05 + chargeProgress * 0.1), 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
         ctx.restore();
 
         // HP Bar
-        const hpBarY = enemy.y - (enemy.enemyType === 'boss' ? 18 : 12); // Position above enemy
+        const hpBarY = enemy.y - (enemy.enemyType === 'boss' ? 18 : 12); 
         const hpBarWidth = enemy.width;
         const hpBarHeight = enemy.enemyType === 'boss' ? 9 : 6;
-        ctx.fillStyle = 'rgba(0,0,20,0.7)'; // Dark background for HP bar
+        ctx.fillStyle = 'rgba(0,0,20,0.7)'; 
         ctx.fillRect(enemy.x, hpBarY, hpBarWidth, hpBarHeight);
-        ctx.fillStyle = enemy.inFuryMode ? '#FF00FF' : (isChilled ? '#00FFFF' : (enemy.isHealingDrone ? '#90EE90' : '#39FF14')); // Color based on status/type
+        ctx.fillStyle = enemy.inFuryMode ? '#FF00FF' : (isChilled ? '#00FFFF' : (enemy.isHealingDrone ? '#90EE90' : '#39FF14')); 
         ctx.fillRect(enemy.x, hpBarY, hpBarWidth * (enemy.hp / enemy.maxHp), hpBarHeight);
-        ctx.strokeStyle = '#00AAAA'; // Border color for HP bar
+        ctx.strokeStyle = '#00AAAA'; 
         ctx.strokeRect(enemy.x, hpBarY, hpBarWidth, hpBarHeight);
 
         // Status effect particles
@@ -138,16 +160,16 @@ export function drawEnemies(
                 createParticleEffect(
                     enemy.x + Math.random() * enemy.width, enemy.y + Math.random() * enemy.height,
                     1, `rgba(255, ${Math.random() * 100 + 100}, 0, ${0.6 + Math.random() * 0.3})`,
-                    10 * (SPRITE_PIXEL_SIZE / 3), // Scale sizeVariance with SPRITE_PIXEL_SIZE
-                    30 * (SPRITE_PIXEL_SIZE / 3) * 2.2, // Scale speed
+                    10 * (SPRITE_PIXEL_SIZE / 3), 
+                    30 * (SPRITE_PIXEL_SIZE / 3) * 2.2, 
                     0.25 + Math.random() * 0.2, 'status_burn'
                 );
             } else if (effect.type === 'chill' && Math.random() < 0.15) {
                 createParticleEffect(
                     enemy.x + Math.random() * enemy.width, enemy.y + Math.random() * enemy.height,
                     1, `rgba(0, 220, 255, ${0.5 + Math.random() * 0.3})`,
-                    12 * (SPRITE_PIXEL_SIZE / 3), // Scale sizeVariance
-                    20 * (SPRITE_PIXEL_SIZE / 3) * 2.2, // Scale speed
+                    12 * (SPRITE_PIXEL_SIZE / 3), 
+                    20 * (SPRITE_PIXEL_SIZE / 3) * 2.2, 
                     0.35 + Math.random() * 0.2, 'status_chill'
                 );
             }
@@ -167,23 +189,26 @@ export function drawProjectiles(
     });
 
     enemyProjectiles.forEach(p => {
-        // Simple distinct drawing for enemy projectiles
-        const eCenterX = p.x + p.width / 2;
-        const eCenterY = p.y + p.height / 2;
-        const coreRadius = p.width * 0.25;
-        const glowRadius = p.width * 0.45;
+        if (p.appliedEffectType === 'boss_laser') {
+            drawProjectileCanvas(ctx, p, gameTime); // Use the dedicated drawing logic for laser
+        } else {
+            const eCenterX = p.x + p.width / 2;
+            const eCenterY = p.y + p.height / 2;
+            const coreRadius = p.width * 0.25;
+            const glowRadius = p.width * 0.45;
 
-        const enemyProjColor = '#FF00AA'; // Bright magenta for enemy projectiles
-        ctx.shadowColor = enemyProjColor; ctx.shadowBlur = 5;
-        ctx.fillStyle = hexToRgba(enemyProjColor, 0.5); // Outer glow
-        ctx.beginPath();
-        ctx.arc(eCenterX, eCenterY, glowRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = enemyProjColor; // Solid core
-        ctx.beginPath();
-        ctx.arc(eCenterX, eCenterY, coreRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+            const enemyProjColor = '#FF00AA'; 
+            ctx.shadowColor = enemyProjColor; ctx.shadowBlur = 5;
+            ctx.fillStyle = hexToRgba(enemyProjColor, 0.5); 
+            ctx.beginPath();
+            ctx.arc(eCenterX, eCenterY, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = enemyProjColor; 
+            ctx.beginPath();
+            ctx.arc(eCenterX, eCenterY, coreRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+        }
     });
 }
 
@@ -192,11 +217,11 @@ export function drawParticles(
     ctx: CanvasRenderingContext2D,
     particles: Readonly<Particle[]>,
     gameTime: number,
-    pixelFontFamily: string // Added pixelFontFamily for specific particle types
+    pixelFontFamily: string 
 ) {
     particles.forEach(p => {
         const alpha = Math.max(0, (p.initialLife && p.life > 0 ? p.life / p.initialLife : 0.5));
-        const radius = p.width / 2; // Assuming width and height are same for particle size
+        const radius = p.width / 2; 
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = p.color;
@@ -204,14 +229,14 @@ export function drawParticles(
         switch (p.particleType) {
             case 'explosion':
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, radius * (1 + (1 - alpha) * 2), 0, Math.PI * 2); // Expanding effect
-                ctx.globalCompositeOperation = 'lighter'; // Additive blending for explosions
+                ctx.arc(p.x, p.y, radius * (1 + (1 - alpha) * 2), 0, Math.PI * 2); 
+                ctx.globalCompositeOperation = 'lighter'; 
                 ctx.fill();
-                ctx.globalCompositeOperation = 'source-over'; // Reset composite operation
+                ctx.globalCompositeOperation = 'source-over'; 
                 break;
             case 'status_burn':
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, radius * (0.5 + Math.random() * 0.5), 0, Math.PI * 2); // Flickering size
+                ctx.arc(p.x, p.y, radius * (0.5 + Math.random() * 0.5), 0, Math.PI * 2); 
                 ctx.fill();
                 break;
             case 'status_chill':
@@ -223,25 +248,29 @@ export function drawParticles(
                     ctx.moveTo(p.x + Math.cos(angle) * length * 0.3, p.y + Math.sin(angle) * length * 0.3);
                     ctx.lineTo(p.x + Math.cos(angle) * length, p.y + Math.sin(angle) * length);
                 }
-                ctx.strokeStyle = p.color; // Use particle's color for shards
-                ctx.lineWidth = radius * 0.2; // Thin shards
+                ctx.strokeStyle = p.color; 
+                ctx.lineWidth = radius * 0.2; 
                 ctx.stroke();
                 break;
             case 'coin_pickup':
-                ctx.font = `bold ${radius * 2}px ${pixelFontFamily}`; // Use pixel font
+                ctx.font = `bold ${radius * 2}px ${pixelFontFamily}`; 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('💰', p.x, p.y);
                 break;
             case 'dash_trail':
                 ctx.beginPath();
-                // Elongated ellipse for dash trail
                 ctx.ellipse(p.x, p.y, radius * (1 + Math.random() * 0.5), radius * (0.5 + Math.random() * 0.3), Math.random() * Math.PI, 0, Math.PI * 2);
                 ctx.fill();
                 break;
             case 'heal_pulse':
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, radius * (alpha + 0.2), 0, Math.PI * 2); // Pulsing/fading size
+                ctx.arc(p.x, p.y, radius * (alpha + 0.2), 0, Math.PI * 2); 
+                ctx.fill();
+                break;
+            case 'boss_laser_charge':
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius * (0.8 + Math.random() * 0.4) * (1 - alpha*0.5), 0, Math.PI * 2); // Shrink slightly over life
                 ctx.fill();
                 break;
             case 'player_double_jump':
@@ -266,15 +295,14 @@ export function drawCoinDrops(
     pixelFontFamily: string
 ) {
     coinDrops.forEach(coin => {
-        const bobOffset = Math.sin(gameTime * 4 + (coin.id.charCodeAt(0) % 10)) * (coin.height * 0.07); // Subtle bobbing
-        const scalePulse = 1 + Math.sin(gameTime * 5 + (coin.id.charCodeAt(1) % 10)) * 0.05; // Gentle pulsing scale
+        const bobOffset = Math.sin(gameTime * 4 + (coin.id.charCodeAt(0) % 10)) * (coin.height * 0.07); 
+        const scalePulse = 1 + Math.sin(gameTime * 5 + (coin.id.charCodeAt(1) % 10)) * 0.05; 
 
         ctx.font = `bold ${coin.height * 0.9 * scalePulse}px ${pixelFontFamily}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#FFD700'; // Gold color for coin
+        ctx.fillStyle = '#FFD700'; 
 
-        // Shadow for depth
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowOffsetX = 1 * scalePulse;
         ctx.shadowOffsetY = 1 * scalePulse;
@@ -282,7 +310,6 @@ export function drawCoinDrops(
 
         ctx.fillText('💰', coin.x + coin.width / 2, coin.y + coin.height / 2 + bobOffset);
 
-        // Reset shadow
         ctx.shadowColor = 'transparent';
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = 0;
@@ -296,11 +323,11 @@ export function drawActiveLightningBolts(
     activeLightningBolts: Readonly<ActiveLightningBolt[]>
 ) {
     activeLightningBolts.forEach(bolt => {
-        const alpha = Math.max(0, bolt.life / bolt.initialLife); // Fade out effect
-        const numSegments = 5; // Number of segments for a jagged line
+        const alpha = Math.max(0, bolt.life / bolt.initialLife); 
+        const numSegments = 5; 
         const segmentLengthX = (bolt.endX - bolt.startX) / numSegments;
         const segmentLengthY = (bolt.endY - bolt.startY) / numSegments;
-        const maxPerpendicularOffset = 15; // Max offset for jaggedness
+        const maxPerpendicularOffset = 15; 
 
         ctx.lineCap = 'round';
         const boltPath = new Path2D();
@@ -308,26 +335,23 @@ export function drawActiveLightningBolts(
         for (let i = 1; i < numSegments; i++) {
             const nodeX = bolt.startX + segmentLengthX * i;
             const nodeY = bolt.startY + segmentLengthY * i;
-            // Calculate perpendicular direction
             let dxSeg = segmentLengthX; let dySeg = segmentLengthY;
             const lenSeg = Math.sqrt(dxSeg * dxSeg + dySeg * dySeg) || 1;
             dxSeg /= lenSeg; dySeg /= lenSeg;
-            const perpX = -dySeg; // Perpendicular X component
-            const perpY = dxSeg;  // Perpendicular Y component
-            // Random offset, more pronounced in the middle
+            const perpX = -dySeg; 
+            const perpY = dxSeg;  
             const offsetMagnitude = (Math.random() - 0.5) * 2 * maxPerpendicularOffset * (1 - Math.abs(i - numSegments / 2) / (numSegments / 2));
             boltPath.lineTo(nodeX + perpX * offsetMagnitude, nodeY + perpY * offsetMagnitude);
         }
         boltPath.lineTo(bolt.endX, bolt.endY);
 
-        // Draw multiple layers for a glowing effect
-        ctx.lineWidth = 18 + Math.random() * 12; // Thick outer glow
+        ctx.lineWidth = 18 + Math.random() * 12; 
         ctx.strokeStyle = `rgba(0, 220, 255, ${alpha * 0.15 * (0.4 + Math.random() * 0.4)})`;
         ctx.stroke(boltPath);
-        ctx.lineWidth = 7 + Math.random() * 5; // Middle glow
+        ctx.lineWidth = 7 + Math.random() * 5; 
         ctx.strokeStyle = `rgba(200, 240, 255, ${alpha * 0.4 * (0.5 + Math.random() * 0.4)})`;
         ctx.stroke(boltPath);
-        ctx.lineWidth = 2.5 + Math.random() * 2; // Core bright line
+        ctx.lineWidth = 2.5 + Math.random() * 2; 
         ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.9 * (0.7 + Math.random() * 0.3)})`;
         ctx.stroke(boltPath);
     });
@@ -340,12 +364,11 @@ export function drawFloatingTexts(
     pixelFontFamily: string
 ) {
     floatingTexts.forEach(ft => {
-        const alpha = Math.max(0, ft.life / ft.initialLife); // Fade out effect
+        const alpha = Math.max(0, ft.life / ft.initialLife); 
         ctx.font = `bold ${ft.fontSize}px ${pixelFontFamily}`;
         ctx.textAlign = 'center';
-        ctx.fillStyle = ft.color.startsWith('#') ? hexToRgba(ft.color, alpha) : `rgba(255,255,255, ${alpha})`; // Handle hex or assume white
+        ctx.fillStyle = ft.color.startsWith('#') ? hexToRgba(ft.color, alpha) : `rgba(255,255,255, ${alpha})`; 
 
-        // Shadow for better readability
         if (ft.color.startsWith('#')) {
             ctx.shadowColor = hexToRgba(ft.color, alpha * 0.7);
         } else {
@@ -353,6 +376,6 @@ export function drawFloatingTexts(
         }
         ctx.shadowBlur = 3;
         ctx.fillText(ft.text, ft.x, ft.y);
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; // Reset shadow
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; 
     });
 }
