@@ -33,6 +33,10 @@ export const SPLITTER_ART_HEIGHT = Math.round(8 * ENEMY_SCALE_FACTOR);
 export const BOSS_ART_WIDTH = Math.round(12 * ENEMY_SCALE_FACTOR); 
 export const BOSS_ART_HEIGHT = Math.round(12 * ENEMY_SCALE_FACTOR); 
 
+export const HEALING_DRONE_ART_WIDTH = Math.round(5 * ENEMY_SCALE_FACTOR * 0.9); // Smaller drone
+export const HEALING_DRONE_ART_HEIGHT = Math.round(5 * ENEMY_SCALE_FACTOR * 0.9);
+
+
 // Projectile Art Dimensions
 export const PROJECTILE_ART_WIDTH = Math.round(2.5 * ENEMY_SCALE_FACTOR); 
 export const PROJECTILE_ART_HEIGHT = Math.round(3 * ENEMY_SCALE_FACTOR); 
@@ -151,6 +155,13 @@ export const ENEMY_CONFIG = {
     shootCooldownFactor: 0.7,
     xpFactor: 0.3,
   },
+  healingDrone: { // factors applied to Standard stats for the same wave/level
+    hpFactor: 0.6,    // Lower HP
+    damageFactor: 0,  // No damage
+    speedFactor: 0.9, // Moderate speed
+    shootCooldownFactor: 1, // Irrelevant, doesn't shoot
+    xpFactor: 0.4,    // Lower XP
+  },
   boss: {
     statReferenceWave: 4, // Wave to use for standard enemy stat calculation as a base for the boss
     // Multipliers for "Standard Enemy @ statReferenceWave" stats:
@@ -179,6 +190,16 @@ export const ENEMY_CONFIG = {
 
 export const FIRST_BOSS_WAVE_NUMBER = 5; 
 export const ALL_BOSS_WAVES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
+
+// Boss Ability Wave Configuration
+export const BOSS_ABILITY_WAVE_CONFIG = {
+  teleport: "all", // "all" or "5,15,25" (comma-separated wave numbers)
+  summonMinions: "all", // "all" or "10,20,30"
+  // Example for future:
+  // specialAttackX: "15,30,45" 
+};
+
+
 // Boss Minion constants remain, as they are not primary stats like HP/damage
 export const BOSS_MINION_RESPAWN_COOLDOWN = 5; 
 export const BOSS_FURY_MINION_SPAWN_COOLDOWN = 5; 
@@ -187,10 +208,29 @@ export const BOSS_MAX_MINIONS_NORMAL = 3;
 export const BOSS_MAX_MINIONS_FURY = 5;
 export const BOSS_FURY_MODE_HP_THRESHOLD = 0.25; // Keeping this, as it's a gameplay threshold
 
+// Boss Teleport Ability Constants
+export const BOSS_TELEPORT_COOLDOWN_MS = 10000; // 10 seconds
+export const BOSS_PREFERRED_Y_POSITION = CANVAS_HEIGHT * 0.10; // Preferred Y position (e.g., 10% from top)
+export const BOSS_TELEPORT_MAX_Y_DESTINATION = CANVAS_HEIGHT * 0.70; // Max Y boss can teleport to (e.g. 70% from top)
+export const BOSS_TELEPORT_MIN_Y_AFTER_TELEPORT_FOR_RETURN = CANVAS_HEIGHT * 0.40; // If Y > this after teleport, return to preferred Y
+
 // Splitter Enemy Constants
 export const SPLITTER_MIN_WAVE = 3;
 export const MINI_SPLITTER_COUNT_MIN = 2;
 export const MINI_SPLITTER_COUNT_MAX = 3;
+
+// Healing Drone Constants
+export const HEALING_DRONE_MIN_WAVE = 4;
+export const HEALING_DRONE_SPAWN_CHANCE = 0.12; // 12% chance per enemy spawn slot, if wave condition met
+export const HEALING_DRONE_HEAL_PERCENTAGE = 0.20; 
+export const HEALING_DRONE_HEAL_COOLDOWN_MS = 5000;
+export const HEALING_DRONE_MAX_TARGETS = 3;
+export const HEALING_DRONE_HEAL_RANGE = 140 * SPRITE_PIXEL_SIZE; 
+export const HEALING_DRONE_SCAN_RANGE = 450 * SPRITE_PIXEL_SIZE;
+export const HEALING_DRONE_RETREAT_Y_MIN_FACTOR = 0.05; 
+export const HEALING_DRONE_RETREAT_Y_MAX_FACTOR = 0.20; 
+export const HEALING_DRONE_STATE_DURATION_BASE = 2.0; 
+export const HEALING_DRONE_BLINK_SPEED = 3; 
 
 
 // --- COSMETICS & SKILLS ---

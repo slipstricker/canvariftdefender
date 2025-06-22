@@ -133,8 +133,8 @@ export interface Player extends GameObject {
   dashInvincibilityDuration?: number; 
 }
 
-export type EnemyType = 'standard' | 'boss' | 'splitter' | 'miniSplitter';
-export type AlienVisualVariant = 'cyclops' | 'green_classic' | 'spiky' | 'multi_tentacle' | 'three_eyed_boss' | 'cosmic_energy_orb' | 'nebula_serpent'; 
+export type EnemyType = 'standard' | 'boss' | 'splitter' | 'miniSplitter' | 'healing_drone';
+export type AlienVisualVariant = 'cyclops' | 'green_classic' | 'spiky' | 'multi_tentacle' | 'three_eyed_boss' | 'cosmic_energy_orb' | 'nebula_serpent' | 'healing_drone'; 
 
 export interface Enemy extends GameObject {
   id: string; 
@@ -159,6 +159,8 @@ export interface Enemy extends GameObject {
   isReturningToCenter?: boolean;
   returnToCenterTimer?: number;
 
+  // Boss Minion specific properties
+  canSummonMinions?: boolean; // New flag for boss ability configuration
   summonedMinionIds?: string[];
   minionRespawnTimer?: number; 
   minionRespawnCooldown?: number; 
@@ -170,6 +172,23 @@ export interface Enemy extends GameObject {
   isSummonedByBoss?: boolean; 
 
   distanceToExplosion?: number; 
+
+  // Healing Drone specific properties
+  isHealingDrone?: boolean;
+  healCooldownValue?: number; // Configurable cooldown
+  lastHealTime?: number;
+  healingTargetIds?: string[]; // IDs of enemies currently being targeted for healing
+  healingRange?: number;
+  scanRange?: number;
+  droneState?: 'IDLE_SCANNING' | 'MOVING_TO_HEAL' | 'HEALING_PULSE' | 'RETREATING';
+  retreatPosition?: { x: number, y: number };
+  timeInCurrentState?: number;
+
+  // Boss Teleport specific properties
+  canTeleport?: boolean; // Will be set dynamically based on wave config
+  lastTeleportTime?: number;
+  teleportCooldownValue?: number;
+  isReturningToTopAfterTeleport?: boolean;
 }
 
 export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment'; 
@@ -200,7 +219,7 @@ export interface Projectile extends GameObject {
   trailPoints?: { x: number, y: number, life: number, initialLife: number, size: number }[]; 
 }
 
-export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic' | 'coin_pickup' | 'dash_trail';
+export type ParticleType = 'generic' | 'explosion' | 'status_burn' | 'status_chill' | 'shield_hit' | 'player_double_jump' | 'player_land_dust' | 'projectile_trail_cosmic' | 'coin_pickup' | 'dash_trail' | 'heal_pulse';
 
 export interface Particle extends GameObject {
   life: number;

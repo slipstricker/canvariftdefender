@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig,
@@ -436,7 +437,7 @@ const App: React.FC = () => {
     }
     
     // --- XP and Standard Coin Drops (if not a cheat drop) ---
-    if (!killedEnemy.isSummonedByBoss) { 
+    if (!killedEnemy.isSummonedByBoss && killedEnemy.enemyType !== 'healing_drone') { // Drones might give XP but not coins
         if (!coinCheatJustDropped && killedEnemy.enemyType !== 'boss') { // Exclude boss from standard coin drop
             if (!adminConfigRef.current.isAdminEnabled) { // Only if not in admin mode
                 let coinDropChance = 0.10 + (playerRef.current.coinDropBonus || 0);
@@ -710,7 +711,8 @@ const App: React.FC = () => {
     const { processedEnemies, newMinionsFromBoss } = runEnemyUpdateCycle(
         enemiesRef.current, playerRef.current, currentDeltaTime, gameContextForUpgrades.addEnemyProjectile,
         currentWaveRef.current, playerProjectilesRef.current, handleEnemyDeath, setFloatingTexts, playSoundFromManager,
-        setCenterScreenMessage 
+        setCenterScreenMessage,
+        (x,y,count,color,size,speed,life,type) => createParticleEffect(setParticles, x,y,count,color,size,speed,life,type) // Pass createParticleEffect here
     );
     setEnemies(processedEnemies);
     if (newMinionsFromBoss.length > 0) setEnemies(prev => [...prev, ...newMinionsFromBoss]);
@@ -726,7 +728,7 @@ const App: React.FC = () => {
         enemiesRef.current, setEnemies, playerRef.current, setPlayer, handleEnemyDeath,
         setFloatingTexts, setScreenShake, setBorderFlash, adminConfigRef.current, playSoundFromManager, 
         initiateReviveSequence, 
-        setParticles,
+        setParticles, // Pass setParticles here
         coinDropsRef.current, setCoinDrops, playerCoins, setPlayerCoins 
     );
     

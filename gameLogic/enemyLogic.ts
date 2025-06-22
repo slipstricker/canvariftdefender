@@ -8,14 +8,21 @@ import {
     PROJECTILE_ART_WIDTH, PROJECTILE_ART_HEIGHT,
     SPLITTER_ART_WIDTH, SPLITTER_ART_HEIGHT, SPLITTER_MIN_WAVE,
     BOSS_MINION_RESPAWN_COOLDOWN, BOSS_MINION_RESPAWN_WARNING_DURATION,
-    BOSS_MAX_MINIONS_NORMAL, BOSS_MAX_MINIONS_FURY, BOSS_FURY_MINION_SPAWN_COOLDOWN
+    BOSS_MAX_MINIONS_NORMAL, BOSS_MAX_MINIONS_FURY, BOSS_FURY_MINION_SPAWN_COOLDOWN,
+    HEALING_DRONE_MIN_WAVE, HEALING_DRONE_SPAWN_CHANCE, HEALING_DRONE_ART_WIDTH, HEALING_DRONE_ART_HEIGHT,
+    HEALING_DRONE_HEAL_COOLDOWN_MS,
+    HEALING_DRONE_MAX_TARGETS, HEALING_DRONE_HEAL_RANGE, HEALING_DRONE_SCAN_RANGE, HEALING_DRONE_RETREAT_Y_MAX_FACTOR,
+    BOSS_TELEPORT_COOLDOWN_MS, BOSS_ABILITY_WAVE_CONFIG
 } from '../constants';
+import { parseAbilityWaveConfig } from './utils';
 
 
 // Helper to calculate standard enemy stats based on wave and player level using ENEMY_CONFIG
-function calculateStandardStats(wave: number, playerLevel: number, configKey: 'standard' | 'bossStatRef') {
+function calculateStandardStats(wave: number, playerLevel: number, configKey: 'standard' | 'bossStatRef' | 'healingDroneRef') {
   const stdCfg = ENEMY_CONFIG.standard;
-  const waveForCalc = (configKey === 'bossStatRef') ? ENEMY_CONFIG.boss.statReferenceWave : wave;
+  let waveForCalc = wave;
+  if (configKey === 'bossStatRef') waveForCalc = ENEMY_CONFIG.boss.statReferenceWave;
+  if (configKey === 'healingDroneRef') waveForCalc = wave; // Drones scale with current wave directly for base
 
   const waveMultiplier = 1 + Math.max(0, waveForCalc - 1) * stdCfg.hp.perWaveFactor; // Generic multiplier for HP-like stats
 
@@ -108,6 +115,7 @@ function createBossEnemy(
     directionChangeCounter: 0,
     isReturningToCenter: false,
     returnToCenterTimer: 0,
+    canSummonMinions: parseAbilityWaveConfig(BOSS_ABILITY_WAVE_CONFIG.summonMinions, currentWave),
     summonedMinionIds: [],
     minionRespawnTimer: 0,
     minionRespawnCooldown: BOSS_MINION_RESPAWN_COOLDOWN,
@@ -116,6 +124,10 @@ function createBossEnemy(
     maxMinionsFury: BOSS_MAX_MINIONS_FURY,
     showMinionWarningTimer: 0,
     showMinionSpawnedMessageTimer: 0,
+    canTeleport: parseAbilityWaveConfig(BOSS_ABILITY_WAVE_CONFIG.teleport, currentWave), 
+    lastTeleportTime: performance.now() + Math.random() * BOSS_TELEPORT_COOLDOWN_MS / 2, // Stagger initial teleports
+    teleportCooldownValue: BOSS_TELEPORT_COOLDOWN_MS,
+    isReturningToTopAfterTeleport: false,
   };
 }
 
@@ -130,6 +142,8 @@ export function createEnemyOrBoss(
   }
 
   const isSplitter = currentWave >= SPLITTER_MIN_WAVE && Math.random() < 0.25; 
+  const isHealingDrone = currentWave >= HEALING_DRONE_MIN_WAVE && Math.random() < HEALING_DRONE_SPAWN_CHANCE && !isSplitter;
+
   const stdStats = calculateStandardStats(currentWave, playerLevel, 'standard');
 
   let enemyActualWidth, enemyActualHeight: number;
@@ -154,6 +168,55 @@ export function createEnemyOrBoss(
     enemyExp *= splitterCfg.xpFactor;
     enemyShootCooldown *= splitterCfg.shootCooldownFactor;
     enemyColor = `hsl(30, 90%, 60%)`; 
+  } else if (isHealingDrone) {
+    const droneCfg = ENEMY_CONFIG.healingDrone;
+    enemyType = 'healing_drone';
+    visualVariant = 'healing_drone';
+    enemyActualWidth = HEALING_DRONE_ART_WIDTH * SPRITE_PIXEL_SIZE;
+    enemyActualHeight = HEALING_DRONE_ART_HEIGHT * SPRITE_PIXEL_SIZE;
+    enemyHp *= droneCfg.hpFactor;
+    enemyDamage = 0; // Drones don't attack
+    enemySpeed *= droneCfg.speedFactor;
+    enemyExp *= droneCfg.xpFactor;
+    enemyShootCooldown = Infinity; // Drones don't shoot
+    enemyColor = `hsl(130, 70%, 50%)`; // Greenish
+
+    const newEnemy: Enemy = {
+        id: `${enemyType}-${performance.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        x: Math.random() * (canvasWidth - enemyActualWidth),
+        y: -enemyActualHeight, 
+        width: enemyActualWidth,
+        height: enemyActualHeight,
+        vx: 0,
+        vy: 0,
+        hp: enemyHp,
+        maxHp: enemyHp,
+        damage: enemyDamage,
+        expValue: Math.floor(enemyExp),
+        isFollowingPlayer: false, // Drones have their own movement logic
+        shootCooldown: enemyShootCooldown,
+        lastShotTime: 0, 
+        color: enemyColor,
+        speed: enemySpeed,
+        slowFactor: 1, 
+        enemyType: enemyType,
+        visualVariant: visualVariant,
+        inFuryMode: false,
+        statusEffects: [],
+        draw: () => {},
+        isHealingDrone: true,
+        healCooldownValue: HEALING_DRONE_HEAL_COOLDOWN_MS,
+        lastHealTime: 0,
+        healingTargetIds: [],
+        healingRange: HEALING_DRONE_HEAL_RANGE,
+        scanRange: HEALING_DRONE_SCAN_RANGE,
+        droneState: 'IDLE_SCANNING',
+        retreatPosition: { x: Math.random() * canvasWidth, y: CANVAS_HEIGHT * HEALING_DRONE_RETREAT_Y_MAX_FACTOR },
+        timeInCurrentState: 0,
+    };
+    playSound('/assets/sounds/enemy_spawn_alien_01.wav', 0.4); // Softer spawn for drone
+    return newEnemy;
+
   } else {
     enemyType = 'standard';
     visualVariant = Math.random() < 0.5 ? 'cyclops' : 'green_classic';

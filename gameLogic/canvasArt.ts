@@ -1,6 +1,7 @@
 
+
 import { Enemy, Player, HatItem, StaffItem, Projectile, ProjectileEffectType, Platform, MouseState, ParticleType } from '../types';
-import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR } from '../constants';
+import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR, HEALING_DRONE_BLINK_SPEED } from '../constants';
 import { SUPER_ALIEN_PALETTE_REF, SPLITTER_PALETTE_REF, MINI_ALIEN_PALETTE_REF } from './spriteArt'; // Import palette refs
 import { hexToRgba, isColorDark } from './utils';
 
@@ -909,4 +910,62 @@ export function drawThreeEyedBossAlienCanvas(ctx: CanvasRenderingContext2D, enem
           ctx.beginPath(); ctx.arc(Math.cos(angle) * dist, Math.sin(angle) * dist, size, 0, Math.PI * 2); ctx.fill();
       }
     }
+}
+
+export function drawHealingDroneCanvas(ctx: CanvasRenderingContext2D, enemy: Enemy, effectiveEnemyColor: string, gameTime: number) {
+    const w = enemy.width;
+    const h = enemy.height;
+    const coreRadius = Math.min(w, h) * 0.4;
+
+    const baseColor1 = '#38761D'; // Darker Green
+    const baseColor2 = '#6AA84F'; // Lighter Green
+    const antennaColor = '#A9D18E'; // Pale Green
+    const lensColor = '#D9EAD3'; // Very Light Green/Off-white
+
+    // Blinking effect
+    const blinkOn = Math.floor(gameTime * HEALING_DRONE_BLINK_SPEED) % 2 === 0;
+    const bodyColor = blinkOn ? baseColor2 : baseColor1;
+    const detailColor = blinkOn ? baseColor1 : baseColor2;
+
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, coreRadius, coreRadius * 0.75, 0, 0, Math.PI * 2); // Main body - flatter ellipse
+    ctx.fill();
+
+    // Detail lines/panels
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = w * 0.04;
+    ctx.beginPath();
+    ctx.moveTo(-coreRadius * 0.6, -coreRadius * 0.3);
+    ctx.lineTo(coreRadius * 0.6, -coreRadius * 0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-coreRadius * 0.4, coreRadius * 0.3);
+    ctx.lineTo(coreRadius * 0.4, coreRadius * 0.3);
+    ctx.stroke();
+
+    // Antenna/Emitter
+    ctx.fillStyle = antennaColor;
+    ctx.beginPath();
+    ctx.arc(0, -coreRadius * 0.7, w * 0.1, 0, Math.PI * 2); // Small sphere at the top
+    ctx.fill();
+    
+    // "Lens" or central emitting point
+    ctx.fillStyle = lensColor;
+    ctx.shadowColor = blinkOn ? '#B6D7A8' : '#769E6A'; // Soft glow based on blink state
+    ctx.shadowBlur = blinkOn ? 8 : 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, coreRadius * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Small "wings" or stabilizers
+    const wingWidth = w * 0.3;
+    const wingHeight = h * 0.15;
+    ctx.fillStyle = detailColor;
+    ctx.beginPath();
+    ctx.rect(-coreRadius * 0.8 - wingWidth / 2, -wingHeight / 2, wingWidth, wingHeight);
+    ctx.rect(coreRadius * 0.8 - wingWidth / 2, -wingHeight / 2, wingWidth, wingHeight);
+    ctx.fill();
 }

@@ -1,3 +1,4 @@
+
 // gameLogic/rendering/entityRenderer.ts
 import {
     Player, Enemy, Projectile, Particle, ActiveLightningBolt, FloatingText,
@@ -6,7 +7,7 @@ import {
 import {
     drawPlayerCanvas, drawHatCanvas, drawStaffCanvas, drawProjectileCanvas,
     drawCyclopsAlienCanvas, drawGreenClassicAlienCanvas, drawSpikyAlienCanvas,
-    drawMultiTentacleAlienCanvas, drawThreeEyedBossAlienCanvas
+    drawMultiTentacleAlienCanvas, drawThreeEyedBossAlienCanvas, drawHealingDroneCanvas
 } from '../canvasArt';
 import { hexToRgba } from '../utils'; // Ensure this path is correct
 import { SPRITE_PIXEL_SIZE } from '../../constants'; // For particle effects, if needed
@@ -99,7 +100,7 @@ export function drawEnemies(
         let effectiveEnemyColor = enemy.color;
         const isChilled = enemy.statusEffects.some(se => se.type === 'chill' && se.duration > 0);
 
-        if (isChilled) effectiveEnemyColor = '#00FFFF'; // Cyan tint for chilled
+        if (isChilled && enemy.enemyType !== 'healing_drone') effectiveEnemyColor = '#00FFFF'; // Cyan tint for chilled non-drones
         if (enemy.isSummonedByBoss) effectiveEnemyColor = '#7777AA'; // Greyish purple for summoned minions
 
         ctx.save();
@@ -112,6 +113,7 @@ export function drawEnemies(
             case 'spiky': drawSpikyAlienCanvas(ctx, enemy, effectiveEnemyColor); break;
             case 'multi_tentacle': drawMultiTentacleAlienCanvas(ctx, enemy, effectiveEnemyColor); break;
             case 'three_eyed_boss': drawThreeEyedBossAlienCanvas(ctx, enemy, effectiveEnemyColor); break;
+            case 'healing_drone': drawHealingDroneCanvas(ctx, enemy, effectiveEnemyColor, gameTime); break;
             default: // Fallback basic draw
                 ctx.fillStyle = effectiveEnemyColor;
                 ctx.fillRect(-enemy.width / 2, -enemy.height / 2, enemy.width, enemy.height);
@@ -125,7 +127,7 @@ export function drawEnemies(
         const hpBarHeight = enemy.enemyType === 'boss' ? 9 : 6;
         ctx.fillStyle = 'rgba(0,0,20,0.7)'; // Dark background for HP bar
         ctx.fillRect(enemy.x, hpBarY, hpBarWidth, hpBarHeight);
-        ctx.fillStyle = enemy.inFuryMode ? '#FF00FF' : (isChilled ? '#00FFFF' : '#39FF14'); // Color based on status
+        ctx.fillStyle = enemy.inFuryMode ? '#FF00FF' : (isChilled ? '#00FFFF' : (enemy.isHealingDrone ? '#90EE90' : '#39FF14')); // Color based on status/type
         ctx.fillRect(enemy.x, hpBarY, hpBarWidth * (enemy.hp / enemy.maxHp), hpBarHeight);
         ctx.strokeStyle = '#00AAAA'; // Border color for HP bar
         ctx.strokeRect(enemy.x, hpBarY, hpBarWidth, hpBarHeight);
@@ -235,6 +237,11 @@ export function drawParticles(
                 ctx.beginPath();
                 // Elongated ellipse for dash trail
                 ctx.ellipse(p.x, p.y, radius * (1 + Math.random() * 0.5), radius * (0.5 + Math.random() * 0.3), Math.random() * Math.PI, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 'heal_pulse':
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, radius * (alpha + 0.2), 0, Math.PI * 2); // Pulsing/fading size
                 ctx.fill();
                 break;
             case 'player_double_jump':

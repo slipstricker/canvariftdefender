@@ -86,3 +86,24 @@ export function isColorDark(hexColor: string): boolean {
     );
     return hsp < 128; // Threshold for darkness, can be adjusted
 }
+
+export function parseAbilityWaveConfig(configString: string | undefined, currentWave: number): boolean {
+  if (!configString) {
+    return false;
+  }
+  const lowerConfig = configString.toLowerCase().trim();
+  if (lowerConfig === "all") {
+    return true;
+  }
+  try {
+    const waves = lowerConfig.split(',').map(w => {
+        const num = parseInt(w.trim(), 10);
+        if (isNaN(num)) throw new Error(`Invalid number in wave config: ${w.trim()}`);
+        return num;
+    });
+    return waves.includes(currentWave);
+  } catch (e) {
+    console.warn(`Could not parse wave config string: "${configString}"`, e);
+    return false;
+  }
+}
