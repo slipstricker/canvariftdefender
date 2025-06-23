@@ -274,3 +274,6 @@ export const DYNAMIC_PLATFORM_SPRITE_ART_HEIGHT = Math.round(DYNAMIC_PLATFORM_HE
 
 // Fragmentation Projectile Damage
 export const FRAGMENTATION_PROJECTILE_DAMAGE_FACTOR = 1 / 3; // Each fragment deals 1/3 of player's average projectile damage
+
+// Paid Reroll
+export const INITIAL_PAID_REROLL_COST = 5;

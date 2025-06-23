@@ -52,6 +52,7 @@ interface GameUIProps {
   handleApplyUpgradeForSelection: (upgrade: Upgrade) => void;
   handleAllPicksMadeForSelection: () => void;
   handleRequestRerollForSelection: () => void;
+  handleRequestPaidReroll: (cost: number) => void; // Added prop
   currentWaveForGameOver: number;
   gameTimeForGameOver: number;
   handleRestartGameFromGameOver: () => void;
@@ -122,6 +123,7 @@ const GameUI: React.FC<GameUIProps> = ({
   handleApplyUpgradeForSelection,
   handleAllPicksMadeForSelection,
   handleRequestRerollForSelection,
+  handleRequestPaidReroll, // Destructured prop
   currentWaveForGameOver,
   gameTimeForGameOver,
   handleRestartGameFromGameOver,
@@ -511,6 +513,7 @@ const GameUI: React.FC<GameUIProps> = ({
                 onUpgradeSelected={handleApplyUpgradeForSelection}
                 onAllPicksMade={handleAllPicksMadeForSelection}
                 onRequestReroll={handleRequestRerollForSelection}
+                onRequestPaidReroll={handleRequestPaidReroll} // Added prop
                 panelBaseClass={panelBaseClass}
                 commonButtonClass={commonButtonClass}
                 isBossRewardMode={isBossRewardMode} 

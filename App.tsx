@@ -59,6 +59,67 @@ const REVIVE_EXPLOSION_BOSS_DAMAGE_FACTOR = 0.75;
 const SLOW_MOTION_FACTOR = 0.2; 
 const SLOW_MOTION_DURATION_MS = 2000; 
 
+const RARITY_WEIGHTS = { comum: 65, incomum: 25, raro: 10 }; // Sums to 100
+
+// Helper function to select an upgrade based on rarity weights
+function selectWeightedUpgrade(
+    pool: Upgrade[], // Should be pre-filtered for non-maxed upgrades globally
+    weights: typeof RARITY_WEIGHTS,
+    player: Player, // Used for max application check within this selection round for boss rewards
+    alreadySelectedIdsThisTurn: string[] // IDs selected in *this specific* level-up/boss reward event
+): Upgrade | null {
+    const filterMaxedOutForThisTurn = (upgrade: Upgrade) => {
+        if (upgrade.maxApplications === undefined) return true;
+        const currentApplications = player.upgrades.filter(uid => uid === upgrade.id).length;
+        return currentApplications < upgrade.maxApplications;
+    };
+
+    const getCandidates = (rarity: 'comum' | 'incomum' | 'raro') => {
+        return pool.filter(u => 
+            u.tier === rarity &&
+            filterMaxedOutForThisTurn(u) &&
+            !alreadySelectedIdsThisTurn.includes(u.id)
+        );
+    };
+
+    const rand = Math.random() * 100;
+    let chosenRarityInitial: 'comum' | 'incomum' | 'raro';
+
+    if (rand < weights.comum) {
+        chosenRarityInitial = 'comum';
+    } else if (rand < weights.comum + weights.incomum) {
+        chosenRarityInitial = 'incomum';
+    } else {
+        chosenRarityInitial = 'raro';
+    }
+
+    const rarityOrder: ('comum' | 'incomum' | 'raro')[] = ['comum', 'incomum', 'raro'];
+    
+    let candidates = getCandidates(chosenRarityInitial);
+    if (candidates.length > 0) {
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    const fallbackOrder = rarityOrder.filter(r => r !== chosenRarityInitial);
+    for (const rarity of fallbackOrder) {
+        candidates = getCandidates(rarity);
+        if (candidates.length > 0) {
+            return candidates[Math.floor(Math.random() * candidates.length)];
+        }
+    }
+    
+    // Final fallback: if all rarity-specific attempts fail, pick any from the pool not yet selected this turn
+    let allRemainingCandidates = pool.filter(u => 
+        filterMaxedOutForThisTurn(u) &&
+        !alreadySelectedIdsThisTurn.includes(u.id)
+    );
+    if (allRemainingCandidates.length > 0) {
+        return allRemainingCandidates[Math.floor(Math.random() * allRemainingCandidates.length)];
+    }
+
+    return null; 
+}
+
 
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,7 +152,7 @@ const App: React.FC = () => {
             x: enemy.x + enemy.width / 2 - fragProjectileSize / 2, y: enemy.y + enemy.height / 2 - fragProjectileSize / 2,
             width: fragProjectileSize, height: fragProjectileSize, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
             damage: fragmentationDamage, owner: 'player', color: projectileColor, glowEffectColor: projectileGlowColor,
-            appliedEffectType: 'standard', // Fragmentation projectiles are treated as 'standard' for their individual hit logic, damage is pre-set
+            appliedEffectType: 'standard', 
             damagedEnemyIDs: [], draw: () => {},
             hitsLeft: 1 + (playerRef.current.projectilePierceCount || 0), isHoming: playerRef.current.projectilesAreHoming,
             homingStrength: playerRef.current.projectileHomingStrength, trailSpawnTimer: 0.01 + Math.random() * 0.02,
@@ -137,7 +198,7 @@ const App: React.FC = () => {
         if (projectileEffectType !== 'boss_laser') {
              projX = x - (customWidth !== undefined ? customWidth : defaultWidth) / 2;
              projY = y - (customHeight !== undefined ? customHeight : defaultHeight) / 2;
-        } // For boss laser, x and y are the exact origin points.
+        } 
 
         const newProjectile: Projectile = {
             x: projX, 
@@ -160,8 +221,6 @@ const App: React.FC = () => {
             newProjectile.angle = Math.atan2(vy, vx); 
             newProjectile.currentLength = 0;
             newProjectile.maxLength = customHeight; 
-            // newProjectile.height = customHeight!; // height is already set to customHeight
-            // newProjectile.width = customWidth!;  // width is already set to customWidth
             newProjectile.vx = 0; 
             newProjectile.vy = 0;
         }
@@ -418,20 +477,45 @@ const App: React.FC = () => {
   const handleLevelUp = useCallback(() => {
     playSoundFromManager('/assets/sounds/event_level_up_01.wav', 0.7);
     const numChoices = playerRef.current.appraisalChoices;
-    const selectedUpgrades: Upgrade[] = [];
-    
-    const tempPoolForSelection = [...availableUpgrades];
+    const offeredUpgrades: Upgrade[] = [];
+    const offeredUpgradeIdsThisTurn: string[] = [];
+
+    const globallyAvailableUpgrades = availableUpgrades.filter(u => {
+        if (u.maxApplications === undefined) return true;
+        const currentApplications = playerRef.current.upgrades.filter(uid => uid === u.id).length;
+        return currentApplications < u.maxApplications;
+    });
 
     for (let i = 0; i < numChoices; i++) {
-        if (tempPoolForSelection.length === 0) break;
-        const randomIndex = Math.floor(Math.random() * tempPoolForSelection.length);
-        selectedUpgrades.push(tempPoolForSelection[randomIndex]);
-        tempPoolForSelection.splice(randomIndex, 1); 
+        if (globallyAvailableUpgrades.length === 0) break;
+
+        const chosenUpgrade = selectWeightedUpgrade(
+            globallyAvailableUpgrades,
+            RARITY_WEIGHTS,
+            playerRef.current, // Pass player for max application check context if needed by selectWeightedUpgrade
+            offeredUpgradeIdsThisTurn
+        );
+
+        if (chosenUpgrade) {
+            offeredUpgrades.push(chosenUpgrade);
+            offeredUpgradeIdsThisTurn.push(chosenUpgrade.id);
+        } else {
+            // Fallback: if weighted selection couldn't find a new one, try to pick any remaining
+            const remainingForFallback = globallyAvailableUpgrades.filter(u => !offeredUpgradeIdsThisTurn.includes(u.id));
+            if (remainingForFallback.length > 0) {
+                const fallbackUpgrade = remainingForFallback[Math.floor(Math.random() * remainingForFallback.length)];
+                offeredUpgrades.push(fallbackUpgrade);
+                offeredUpgradeIdsThisTurn.push(fallbackUpgrade.id);
+            } else {
+                break; // No more unique upgrades to offer
+            }
+        }
     }
-    setCurrentOfferedUpgradesForSelection(selectedUpgrades);
+    setCurrentOfferedUpgradesForSelection(offeredUpgrades);
     setCurrentPicksAllowedForSelection(1); 
     setGameState(GameState.ChoosingUpgrade);
-  }, [availableUpgrades, playSoundFromManager]); 
+  }, [availableUpgrades, playSoundFromManager]);
+
 
   const handleEnemyDeath = useCallback((killedEnemy: Enemy) => {
     const randomHue = Math.random() * 360; const particleColor = `hsl(${randomHue}, 90%, 70%)`;
@@ -537,7 +621,6 @@ const App: React.FC = () => {
         const bossRewardChoices = InitialUpgradesConfig.filter(u => {
             if (!uniquePlayerUpgradeIds.includes(u.id)) return false; 
             if (singleApplicationSkillIdsToExclude.includes(u.id)) return false;
-            // Ensure the upgrade is not already maxed out
             if (u.maxApplications !== undefined) {
                 const currentApplications = playerRef.current.upgrades.filter(uid => uid === u.id).length;
                 if (currentApplications >= u.maxApplications) {
@@ -588,6 +671,14 @@ const App: React.FC = () => {
   }, []);
   const handleRequestReroll = useCallback(() => { setPlayer(p => ({...p, usedFreeRerollThisLevelUp: true})); handleLevelUp(); }, [handleLevelUp]);
   
+  const handleRequestPaidReroll = useCallback((cost: number) => {
+    if (playerRef.current.coins >= cost && gameStateRef.current === GameState.ChoosingUpgrade && !isBossRewardModeRef.current) {
+      setPlayerCoins(prev => prev - cost);
+      playSoundFromManager('/assets/sounds/ui_button_click_01.wav', 0.7);
+      handleLevelUp(); // Re-uses handleLevelUp to generate new choices
+    }
+  }, [setPlayerCoins, playSoundFromManager, handleLevelUp]);
+
 
   const triggerReviveAOEDamage = useCallback(() => {
     const explosionDamageBoss = playerRef.current.maxHp * REVIVE_EXPLOSION_BOSS_DAMAGE_FACTOR;
@@ -770,7 +861,7 @@ const App: React.FC = () => {
                 const targetY = closestEnemy.y + closestEnemy.height / 2;
                 const angle = Math.atan2(targetY - miniatureCenterY, targetX - miniatureCenterX);
                 
-                const miniatureDamage = player.maxProjectileDamage * 0.20; // Damage reduced to 20%
+                const miniatureDamage = player.maxProjectileDamage * 0.20; 
                 const projectileSpeed = 600 * (1 + (player.projectileSpeedBonus || 0));
                 const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE * 0.6; 
                 const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE * 0.6;
@@ -839,7 +930,7 @@ const App: React.FC = () => {
         gameContextForUpgrades.activateThunderbolts(1, 0, newLightningBolts.mouseX, newLightningBolts.mouseY);
     }
     
-    handleMiniatureLogic(); // Handle miniature shooting logic
+    handleMiniatureLogic(); 
 
     const { processedEnemies, newMinionsFromBoss } = runEnemyUpdateCycle(
         enemiesRef.current, playerRef.current, currentDeltaTime, gameContextForUpgrades.addEnemyProjectile,
@@ -856,7 +947,6 @@ const App: React.FC = () => {
     
     setParticles(prev => updateParticleSystem(prev, currentDeltaTime, 1800)); 
 
-    // Passive HP Regeneration
     if (playerRef.current.passiveHpRegenAmount && playerRef.current.passiveHpRegenAmount > 0 && playerRef.current.hp < playerRef.current.maxHp) {
         if (performance.now() - (playerRef.current.lastPassiveHpRegenTime || 0) > (playerRef.current.passiveHpRegenInterval || 5000)) {
             setPlayer(p => ({
@@ -876,9 +966,8 @@ const App: React.FC = () => {
         coinDropsRef.current, setCoinDrops, playerCoins, setPlayerCoins 
     );
     
-    // Coin attraction logic
     if (playerRef.current.hasCoinAttractionSkill && playerRef.current.coinAttractionRadius && playerRef.current.coinAttractionRadius > 0) {
-      const attractionStrength = 0.08; // Slightly stronger pull
+      const attractionStrength = 0.08; 
       const maxAttractionSpeed = 450 * SPRITE_PIXEL_SIZE; 
 
       setCoinDrops(prevCoins => prevCoins.map(coin => {
@@ -894,15 +983,12 @@ const App: React.FC = () => {
         if (distanceSq < (playerRef.current.coinAttractionRadius! * playerRef.current.coinAttractionRadius!)) {
           const distance = Math.sqrt(distanceSq);
           if (distance > 1) { 
-            // Determine base pull velocity components
             let pullVx = (dx / distance) * maxAttractionSpeed * attractionStrength;
             let pullVy = (dy / distance) * maxAttractionSpeed * attractionStrength;
             
-            // Combine with existing coin velocity
             let newVx = (coin.vx || 0) + pullVx;
-            let newVy = coin.vy + pullVy; // Add to existing vy, which includes gravity
+            let newVy = coin.vy + pullVy; 
 
-            // Cap total speed if it exceeds maxAttractionSpeed
             const currentTotalSpeed = Math.sqrt(newVx * newVx + newVy * newVy);
             if (currentTotalSpeed > maxAttractionSpeed) {
               newVx = (newVx / currentTotalSpeed) * maxAttractionSpeed;
@@ -911,7 +997,7 @@ const App: React.FC = () => {
             return { ...coin, vx: newVx, vy: newVy };
           }
         }
-        return coin; // Return coin as is if not in range or already at player
+        return coin; 
       }));
     }
 
@@ -941,20 +1027,19 @@ const App: React.FC = () => {
     setCoinDrops(prevDrops => prevDrops.map(cd => {
         let newVy = cd.vy + 1800 * currentDeltaTime; 
         let newY = cd.y + newVy * currentDeltaTime;
-        let newVx = cd.vx || 0; // Preserve horizontal velocity for attraction
+        let newVx = cd.vx || 0; 
         let newOnGround = cd.onGround;
         const groundPlatformHeight = platforms.find(p=>p.id==='ground')?.height || 0;
         
         if (newY + cd.height > CANVAS_HEIGHT - groundPlatformHeight) {
             newY = CANVAS_HEIGHT - groundPlatformHeight - cd.height;
             newVy = 0; 
-            newVx *= 0.9; // Friction on ground
+            newVx *= 0.9; 
             newOnGround = true;
         }
         
-        // Apply horizontal movement from attraction (or existing vx if not attracted)
         let finalX = cd.x + newVx * currentDeltaTime;
-        finalX = Math.max(0, Math.min(finalX, CANVAS_WIDTH - cd.width)); // Clamp to canvas X
+        finalX = Math.max(0, Math.min(finalX, CANVAS_WIDTH - cd.width)); 
 
         return {...cd, x: finalX, y:newY, vx: newVx, vy:newVy, onGround:newOnGround, life: cd.life - (newOnGround ? currentDeltaTime * 0.5 : currentDeltaTime)};
       }).filter(cd => cd.life > 0)
@@ -982,7 +1067,6 @@ const App: React.FC = () => {
     drawBackground(ctx, stars, nebulae, gameTime, CANVAS_WIDTH, CANVAS_HEIGHT);
     drawPlatforms(ctx, platforms, gameTime);
     drawPlayerAndAccessories(ctx, playerRef.current, gameTime, mouseStateRef.current, canvasRef.current.getBoundingClientRect(), CANVAS_WIDTH, CANVAS_HEIGHT, ALL_HATS_SHOP, ALL_STAFFS_SHOP);
-    // drawMiniatures is now called within drawPlayerAndAccessories
     drawEnemies(ctx, enemiesRef.current, gameTime, (x,y,count,color,size,speed,life,type) => createParticleEffect(setParticles,x,y,count,color,size,speed,life,type));
     drawProjectilesRenderer(ctx, playerProjectilesRef.current, enemyProjectilesRef.current, gameTime);
     drawParticlesRenderer(ctx, particles, gameTime, PIXEL_FONT_FAMILY);
@@ -1126,7 +1210,6 @@ const App: React.FC = () => {
           };
           setPurchasedPermanentSkillsState(newSkillsState);
 
-          // Immediately update the live player object with new skill effects
           setPlayer(currentPlayer => {
               let updatedLivePlayer = { ...currentPlayer };
               updatedLivePlayer.purchasedPermanentSkills = newSkillsState;
@@ -1276,6 +1359,7 @@ const App: React.FC = () => {
         handleApplyUpgradeForSelection={handleApplyUpgrade} 
         handleAllPicksMadeForSelection={handleAllPicksMade} 
         handleRequestRerollForSelection={handleRequestReroll}
+        handleRequestPaidReroll={handleRequestPaidReroll} // Added prop
         currentWaveForGameOver={currentWaveRef.current} gameTimeForGameOver={gameTimeRef.current} 
         handleRestartGameFromGameOver={handleRestartGameFromGameOver}
         handleCoinBasedRevive={handleCoinBasedRevive} 

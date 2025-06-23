@@ -5,6 +5,7 @@
 
 
 
+
 import React from 'react';
 import { Player, Enemy, Projectile, FloatingText, AdminConfig, AppliedStatusEffect, ParticleType, Particle, CoinDrop } from '../types';
 import { BOSS_FURY_MODE_HP_THRESHOLD, SPRITE_PIXEL_SIZE, SKILL_DASH_INVINCIBILITY_DURATION, BOSS_LASER_SPEED, ENEMY_CONFIG } from '../constants';
@@ -56,71 +57,66 @@ export function checkCollisions(
 
 
     setPlayerProjectiles(prevProj => prevProj.filter(proj => {
+      // This flag determines if the projectile should be removed after checking all enemies.
+      // It's set if the projectile runs out of hits or is a single-hit type.
       let projectileNeedsDestroy = false;
+      
+      // This is not used for piercing logic directly but for other effects.
       let directHitOccurred = false; 
 
+      // Initialize damagedEnemyIDs if it doesn't exist, to track enemies hit by this specific projectile instance.
       proj.damagedEnemyIDs = proj.damagedEnemyIDs || [];
 
       setEnemies(prevEnemies => prevEnemies.map(enemy => {
-        if (!enemy || enemy.hp <= 0) return null;
+        if (!enemy || enemy.hp <= 0) return null; // Skip dead or null enemies.
         
+        // If projectile is already marked for destruction (e.g., hit limit reached with a previous enemy in this frame)
+        // OR if this specific projectile instance has already damaged this specific enemy, skip further interaction.
         if (projectileNeedsDestroy || proj.damagedEnemyIDs!.includes(enemy.id)) {
             return enemy;
         }
 
+        // Standard AABB collision check.
         if (proj.x < enemy.x + enemy.width && proj.x + proj.width > enemy.x &&
             proj.y < enemy.y + enemy.height && proj.y + proj.height > enemy.y) {
 
-          // Invulnerability Check for Boss during Laser Charge
+          // Boss invulnerability during laser charge.
           if (enemy.enemyType === 'boss' && enemy.isChargingLaser) {
-              // Boss is invulnerable
               createParticleEffectFn(
-                  proj.x + proj.width / 2,
-                  proj.y + proj.height / 2,
-                  15, // Particle count
-                  '#9400D3', // DarkViolet color for invulnerability deflection
-                  SPRITE_PIXEL_SIZE * 2.5, // sizeVariance
-                  100 * SPRITE_PIXEL_SIZE, // speed
-                  0.3, // life
-                  'shield_hit' // Can reuse shield_hit type
+                  proj.x + proj.width / 2, proj.y + proj.height / 2,
+                  15, '#9400D3', SPRITE_PIXEL_SIZE * 2.5, 100 * SPRITE_PIXEL_SIZE, 0.3, 'shield_hit'
               );
-              playSound('/assets/sounds/shield_hit_01.wav', 0.6); // Sound for deflection
+              playSound('/assets/sounds/shield_hit_01.wav', 0.6);
 
-              // Consume projectile or decrement hitsLeft
+              // Consume projectile hit if it has hitsLeft, otherwise mark for destruction if single-hit.
               if (proj.hitsLeft !== undefined && proj.hitsLeft > 0) {
                   proj.hitsLeft--;
-                  if (proj.hitsLeft <= 0) {
-                      projectileNeedsDestroy = true;
-                  }
-              } else if (proj.hitsLeft === undefined) { // Piercing not defined, single hit projectile
+                  if (proj.hitsLeft <= 0) projectileNeedsDestroy = true;
+              } else if (proj.hitsLeft === undefined) {
                   projectileNeedsDestroy = true;
               }
-              // Return the enemy unchanged, as it's invulnerable
-              return enemy;
+              return enemy; // Boss is invulnerable, enemy state doesn't change from this hit.
           }
-          // END Invulnerability Check
+          // End Invulnerability Check
 
-          directHitOccurred = true;
-          proj.damagedEnemyIDs!.push(enemy.id); 
+          directHitOccurred = true; // Mark that a direct hit happened (used for some effects).
+          proj.damagedEnemyIDs!.push(enemy.id); // Record that this projectile instance hit this enemy.
 
           let actualDamageDealt;
-          let damageTextColor = "#FFFFFF"; // Default damage text color
+          let damageTextColor = "#FFFFFF";
           const isCrit = Math.random() < player.critChance;
 
           if (isCrit) {
-            actualDamageDealt = proj.damage * player.critMultiplier; // Use projectile's base damage for crit calculation
-            damageTextColor = "#FF00FF"; // Crit color
+            actualDamageDealt = proj.damage * player.critMultiplier;
+            damageTextColor = "#FF00FF";
             const newCritText: FloatingText = {
-              id: `crit-${performance.now()}-${Math.random()}`,
-              text: "CRÍTICO!",
-              x: enemy.x + enemy.width / 2,
-              y: enemy.y + enemy.height / 2 - 10, 
+              id: `crit-${performance.now()}-${Math.random()}`, text: "CRÍTICO!",
+              x: enemy.x + enemy.width / 2, y: enemy.y + enemy.height / 2 - 10, 
               vy: -88, life: 0.7, initialLife: 0.7, color: damageTextColor, fontSize: 24, 
             };
             setFloatingTexts(prev => [...prev, newCritText]);
           } else {
-            actualDamageDealt = proj.damage; // Use projectile's own base damage
-            // Determine color based on the actual damage dealt relative to player's main weapon potential for visual feedback
+            actualDamageDealt = proj.damage;
             damageTextColor = getDamageColor(actualDamageDealt, player.minProjectileDamage, player.maxProjectileDamage);
           }
           
@@ -136,50 +132,51 @@ export function checkCollisions(
              enemyAfterHit = applyChillEffect(enemyAfterHit, player, setFloatingTexts); 
           }
 
-          // Show damage number if not a crit (crits have their own text)
           if (!isCrit) { 
              const damageText: FloatingText = {
-                id: `dmg-${performance.now()}-${enemy.id}`,
-                text: `${Math.round(actualDamageDealt)}`,
-                x: enemy.x + enemy.width / 2,
-                y: enemy.y, 
+                id: `dmg-${performance.now()}-${enemy.id}`, text: `${Math.round(actualDamageDealt)}`,
+                x: enemy.x + enemy.width / 2, y: enemy.y, 
                 vy: -77, life: 0.65, initialLife: 0.65, color: damageTextColor, fontSize: 22,
             };
             setFloatingTexts(prev => [...prev, damageText]);
           }
 
           createParticleEffectFn(
-            proj.x + proj.width / 2, 
-            proj.y + proj.height / 2,
+            proj.x + proj.width / 2, proj.y + proj.height / 2,
             6, proj.color, SPRITE_PIXEL_SIZE * 3, 90 * SPRITE_PIXEL_SIZE, 0.25, 'generic' 
           );
           
           let newHp = enemy.hp - actualDamageDealt;
           
+          // Handle on-hit explosion if configured.
           if (proj.onHitExplosionConfig && proj.explosionRadius && Math.random() < proj.onHitExplosionConfig.chance) {
             handleExplosionFn(proj, proj.onHitExplosionConfig.maxTargets, proj.onHitExplosionConfig.damageFactor);
-            proj.hitsLeft = 0; 
+            proj.hitsLeft = 0; // Explosion consumes all remaining hits.
           }
           
+          // Piercing / Multi-hit logic:
+          // If the projectile has a hitsLeft counter and it's greater than 0, decrement it.
+          // If hitsLeft becomes 0 or less after decrementing, mark the projectile for destruction.
+          // If hitsLeft was undefined (meaning it's a standard single-hit projectile), mark for destruction.
           if (proj.hitsLeft !== undefined && proj.hitsLeft > 0) {
               proj.hitsLeft--; 
               if (proj.hitsLeft <= 0) { 
                   projectileNeedsDestroy = true;
               }
-          } else if (proj.hitsLeft === undefined) { 
+          } else if (proj.hitsLeft === undefined) { // Standard single-hit projectile
               projectileNeedsDestroy = true;
           }
 
 
           if (newHp <= 0) {
             handleEnemyDeath({...enemyAfterHit, hp: 0}); 
-            return null; 
+            return null; // Enemy is killed.
           }
 
+          // Boss fury mode check.
           let updatedFuryMode = enemyAfterHit.inFuryMode;
           if (enemyAfterHit.enemyType === 'boss' && !enemyAfterHit.inFuryMode && newHp <= enemyAfterHit.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
             updatedFuryMode = true;
-            // Apply fury damage multiplier to the boss's base damage
             enemyAfterHit.damage *= (ENEMY_CONFIG.boss.furyDamageMultiplier || 1);
             const furyText: FloatingText = {
               id: `fury-${performance.now()}`, text: "CHEFE EM MODO FÚRIA!",
@@ -196,9 +193,11 @@ export function checkCollisions(
 
           return { ...enemyAfterHit, hp: newHp, inFuryMode: updatedFuryMode };
         }
-        return enemy;
+        return enemy; // No collision with this enemy.
       }).filter(Boolean) as Enemy[]); 
       
+      // After checking all enemies, if projectileNeedsDestroy is true, it will be filtered out.
+      // Otherwise (it pierced or missed all), it remains.
       return !projectileNeedsDestroy; 
     }));
 
@@ -208,9 +207,8 @@ export function checkCollisions(
         let projectileHitPlayer = false;
 
         if (proj.appliedEffectType === 'boss_laser') {
-            // Laser is active if fully extended (or close to it) and life > 0
             const isActiveLaser = proj.currentLength !== undefined && proj.maxLength !== undefined &&
-                                 proj.currentLength >= proj.maxLength - (BOSS_LASER_SPEED * 0.016 * 2) && // Check if almost or fully extended (0.016 is approx deltaTime for 60fps)
+                                 proj.currentLength >= proj.maxLength - (BOSS_LASER_SPEED * 0.016 * 2) && 
                                  proj.life !== undefined && proj.life > 0;
 
             if (isActiveLaser) {
@@ -219,21 +217,17 @@ export function checkCollisions(
                 const laserEndX = proj.x + Math.cos(proj.angle!) * proj.currentLength!;
                 const laserEndY = proj.y + Math.sin(proj.angle!) * proj.currentLength!;
                 
-                // Using the lineIntersectsRect for the centerline of the laser
                 if (lineIntersectsRect(laserStartX, laserStartY, laserEndX, laserEndY, 
                                         currentPlayer.x, currentPlayer.y, currentPlayer.width, currentPlayer.height)) {
                     
                     if (!proj.damagedEnemyIDs || !proj.damagedEnemyIDs.includes("player_hit")) {
-                        projectileHitPlayer = true; // Mark that this specific projectile hit
+                        projectileHitPlayer = true; 
                         if (!proj.damagedEnemyIDs) proj.damagedEnemyIDs = [];
-                        proj.damagedEnemyIDs.push("player_hit"); // Prevent multiple hits from same laser beam
+                        proj.damagedEnemyIDs.push("player_hit"); 
                     }
                 }
             }
-            // Laser projectile is not destroyed by collision, it lives out its 'life'
-            // The filter at the end of updateProjectiles handles its removal. So, always return true here for lasers.
         } else {
-            // Standard AABB collision for other enemy projectiles
             if (proj.x < currentPlayer.x + currentPlayer.width && proj.x + proj.width > currentPlayer.x &&
                 proj.y < currentPlayer.y + currentPlayer.height && proj.y + proj.height > currentPlayer.y) {
                 projectileHitPlayer = true;
@@ -244,7 +238,7 @@ export function checkCollisions(
         if (projectileHitPlayer) {
              if (currentPlayer.isInvincible && currentPlayer.invincibilityDuration === (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) && performance.now() < currentPlayer.lastHitTime + (currentPlayer.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION)) {
                 createParticleEffectFn(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 25, '#FFFFFF', 30, 180, 0.5, 'shield_hit'); 
-                return proj.appliedEffectType === 'boss_laser'; // Laser is not destroyed on hit
+                return proj.appliedEffectType === 'boss_laser'; 
             }
             
             let effectiveDefense = currentPlayer.defense;
@@ -259,11 +253,11 @@ export function checkCollisions(
                   return { ...p, shieldCurrentHp: newShieldHp, shieldLastDamagedTime: performance.now() }
                 });
                 createParticleEffectFn(currentPlayer.x + currentPlayer.width/2, currentPlayer.y + currentPlayer.height/2, 20, '#00FFFF', 25, 100 * 2.2, 0.4, 'shield_hit'); 
-                return proj.appliedEffectType === 'boss_laser'; // Laser is not destroyed on hit
+                return proj.appliedEffectType === 'boss_laser'; 
             }
 
             if (currentPlayer.isInvincible && performance.now() < currentPlayer.lastHitTime + currentPlayer.invincibilityDuration) {
-                 return proj.appliedEffectType === 'boss_laser'; // Laser is not destroyed on hit
+                 return proj.appliedEffectType === 'boss_laser'; 
             }
 
             setPlayer(p => {
@@ -286,9 +280,9 @@ export function checkCollisions(
               return { ...p, hp: newHp, isInvincible: true, lastHitTime: performance.now(), invincibilityDuration: 500 }; 
             });
             
-            return proj.appliedEffectType === 'boss_laser'; // Destroy non-laser projectile, keep laser
+            return proj.appliedEffectType === 'boss_laser'; 
         }
-        return true; // Projectile did not hit or is a laser, keep it for now
+        return true; 
     }));
 
 
@@ -352,7 +346,6 @@ export function checkCollisions(
 
                     if (enemy.enemyType === 'boss' && !enemy.inFuryMode && newHp <= enemy.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
                         updatedFuryMode = true;
-                        // Apply fury damage multiplier to the boss's base damage
                         enemy.damage *= (ENEMY_CONFIG.boss.furyDamageMultiplier || 1);
                         const furyText: FloatingText = {
                             id: `fury-aura-${performance.now()}`, text: "CHEFE EM MODO FÚRIA!",
