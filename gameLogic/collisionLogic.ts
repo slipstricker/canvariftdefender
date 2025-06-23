@@ -3,9 +3,11 @@
 
 
 
+
+
 import React from 'react';
 import { Player, Enemy, Projectile, FloatingText, AdminConfig, AppliedStatusEffect, ParticleType, Particle, CoinDrop } from '../types';
-import { BOSS_FURY_MODE_HP_THRESHOLD, SPRITE_PIXEL_SIZE, SKILL_DASH_INVINCIBILITY_DURATION, BOSS_LASER_SPEED } from '../constants';
+import { BOSS_FURY_MODE_HP_THRESHOLD, SPRITE_PIXEL_SIZE, SKILL_DASH_INVINCIBILITY_DURATION, BOSS_LASER_SPEED, ENEMY_CONFIG } from '../constants';
 import { getDamageColor, lineIntersectsRect } from './utils';
 import { applyBurnEffect, applyChillEffect, handleExplosion, createParticleEffect as createParticleEffectFromEffects } from './gameEffects';
 
@@ -177,6 +179,8 @@ export function checkCollisions(
           let updatedFuryMode = enemyAfterHit.inFuryMode;
           if (enemyAfterHit.enemyType === 'boss' && !enemyAfterHit.inFuryMode && newHp <= enemyAfterHit.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
             updatedFuryMode = true;
+            // Apply fury damage multiplier to the boss's base damage
+            enemyAfterHit.damage *= (ENEMY_CONFIG.boss.furyDamageMultiplier || 1);
             const furyText: FloatingText = {
               id: `fury-${performance.now()}`, text: "CHEFE EM MODO FÚRIA!",
               x: enemyAfterHit.width > 0 ? enemyAfterHit.width / 2 : 500, 
@@ -348,6 +352,8 @@ export function checkCollisions(
 
                     if (enemy.enemyType === 'boss' && !enemy.inFuryMode && newHp <= enemy.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
                         updatedFuryMode = true;
+                        // Apply fury damage multiplier to the boss's base damage
+                        enemy.damage *= (ENEMY_CONFIG.boss.furyDamageMultiplier || 1);
                         const furyText: FloatingText = {
                             id: `fury-aura-${performance.now()}`, text: "CHEFE EM MODO FÚRIA!",
                             x: enemy.width > 0 ? enemy.width / 2 : 500, 

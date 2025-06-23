@@ -196,7 +196,7 @@ export const ALL_BOSS_WAVES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65
 export const BOSS_ABILITY_WAVE_CONFIG = {
   teleport: "all", 
   summonMinions: "all", 
-  laser: "all", // "all" or e.g., "10,20,30"
+  laser: "10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200", // "all" or e.g., "10,20,30"
 };
 
 
@@ -216,8 +216,8 @@ export const BOSS_TELEPORT_MIN_Y_AFTER_TELEPORT_FOR_RETURN = CANVAS_HEIGHT * 0.4
 
 // Boss Laser Ability Constants
 export const BOSS_LASER_CHARGE_TIME_MS = 2000;
-export const BOSS_LASER_COOLDOWN_MS = 15000;
-export const BOSS_LASER_SPEED = 2500; // Base speed at which the laser visually extends, pixels per second
+export const BOSS_LASER_COOLDOWN_MS = 10000;
+export const BOSS_LASER_SPEED = 5000; // Base speed at which the laser visually extends, pixels per second
 export const BOSS_LASER_SPEED_INCREASE_PER_BOSS_WAVE = 0.10; // 10% increase per boss wave after the first
 export const BOSS_LASER_MAX_TOTAL_SPEED_MULTIPLIER = 2; // Max speed is 150% of base (50% increase)
 export const BOSS_LASER_COLOR = '#FF0000'; // Red

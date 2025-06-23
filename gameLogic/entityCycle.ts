@@ -1,6 +1,4 @@
 
-
-
 import { Enemy, Player, Projectile, AppliedStatusEffect, EnemyType, AlienVisualVariant, EnemyUpdateResult, FloatingText, Particle, CenterScreenMessage, ParticleType, ProjectileEffectType } from '../types';
 import { 
     CANVAS_HEIGHT, CANVAS_WIDTH, ENEMY_PROJECTILE_COLOR, GRAVITY,
@@ -33,8 +31,8 @@ function _createStandardMinionForBoss(
   const hpPerPlayerLevel = 1.5 * waveMultiplier;
   const baseDamage = 2 * waveMultiplier;
   const damagePerPlayerLevel = 0.2 * waveMultiplier;
-  const baseExp = 3 * waveMultiplier; 
-  const expPerPlayerLevel = 0.5 * waveMultiplier;
+  // const baseExp = 3 * waveMultiplier; // XP value for minions is now 0
+  // const expPerPlayerLevel = 0.5 * waveMultiplier; // XP value for minions is now 0
   const initialBaseSpeed = 65; 
   const speedBonusPerWaveFactor = 0.06;
   const maxSpeedBonusFactor = 0.25;
@@ -47,7 +45,7 @@ function _createStandardMinionForBoss(
   const enemyHp = baseHp + playerLevel * hpPerPlayerLevel;
   const enemyDamage = baseDamage + playerLevel * damagePerPlayerLevel;
   const enemySpeed = (currentBaseSpeed + Math.random() * 15); 
-  const enemyExp = Math.floor(baseExp + playerLevel * expPerPlayerLevel);
+  const enemyExp = 0; // Minions grant no XP
   let shootCooldownBase = Math.max(400, 2000 - currentWave * 40);
   shootCooldownBase *= 1.00; 
 
@@ -68,7 +66,7 @@ function _createStandardMinionForBoss(
     hp: enemyHp,
     maxHp: enemyHp,
     damage: enemyDamage,
-    expValue: enemyExp,
+    expValue: enemyExp, // Set to 0
     isFollowingPlayer: false, 
     shootCooldown: shootCooldownBase,
     lastShotTime: performance.now() + Math.random() * 1000,
@@ -279,7 +277,7 @@ export function updateEnemy(
     const canUseAnyAbility = (now - (enemy.lastAbilityEndTime || 0)) > BOSS_GLOBAL_SKILL_COOLDOWN_MS;
 
     // --- Boss Laser Ability ---
-    if (enemy.canUseLaser && enemy.inFuryMode) {
+    if (enemy.canUseLaser) { 
         if (enemy.isChargingLaser) { // Already charging
             enemy.laserChargeTimer = (enemy.laserChargeTimer || 0) - deltaTime;
             enemy.isPerformingChargeAbility = true; // Ensure this is set
@@ -320,7 +318,6 @@ export function updateEnemy(
             enemy.laserChargeTimer = BOSS_LASER_CHARGE_TIME_MS / 1000; 
             enemy.lastShotTime = now; // Prevent normal shooting while charging
             if (setCenterMessageFn) setCenterMessageFn({ text: "Boss Carregando Laser!", duration: BOSS_LASER_CHARGE_TIME_MS/1000, initialDuration: BOSS_LASER_CHARGE_TIME_MS/1000, color: '#FF4500', fontSize: 18 });
-            // lastAbilityEndTime is set when laser is FIRED, not when charging starts.
         }
     }
 
@@ -399,7 +396,7 @@ export function updateEnemy(
             if (Math.abs(dyToTarget) < effectiveSpeed * deltaTime * 0.8) { y = targetY; vy = 0; enemy.isReturningToTopAfterTeleport = false; } 
             else { vy = Math.sign(dyToTarget) * effectiveSpeed * 0.7; }
         } else if (!didTeleportThisFrame) { y = BOSS_PREFERRED_Y_POSITION; vy = 0; } 
-        else { vy = 0; }
+        else { vy = 0; } 
 
         // X-Position Management (Evasion, Centering)
         let calculatedVx = 0;
@@ -492,7 +489,7 @@ export function updateEnemy(
     const angle = Math.atan2( player.y + player.height / 2 - (y + height / 2), player.x + player.width / 2 - (x + width / 2));
     const projectileSpeedBase = (enemyType === 'boss' ? 600 : (enemyType === 'miniSplitter' ? 389 : 356) ); 
     const projectileSpeed = (projectileSpeedBase + currentWave * 5) * (chillEffect && chillEffect.attackSpeedSlowFactor ? chillEffect.attackSpeedSlowFactor : 1); 
-    let currentEnemyDamage = enemyDamage;
+    let currentEnemyDamage = enemyDamage; 
     const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE;
     const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE;
     addEnemyProjectileCallback(
