@@ -1,6 +1,4 @@
 
-
-
 import { Enemy, Player, Projectile, AppliedStatusEffect, EnemyType, AlienVisualVariant, EnemyUpdateResult } from '../types';
 import { 
     CANVAS_HEIGHT, CANVAS_WIDTH, ENEMY_PROJECTILE_COLOR,
@@ -81,10 +79,11 @@ function createBossEnemy(
     currentMoveSpeed = Math.min(currentMoveSpeed, initialBossSpeed * bossCfg.maxSpeedFactorOfInitialBoss); 
     currentExpValue = Math.floor(currentExpValue * Math.pow(bossCfg.xpScalingFactorPer10Waves, scalingSteps));
   }
-  
+  currentHp = Math.max(1, currentHp); // Ensure HP is at least 1
+
   playSound('/assets/sounds/enemy_spawn_alien_01.wav', 0.8);
 
-  return {
+  const newBoss: Enemy = {
     id: `boss-${currentWave}-${performance.now()}`,
     x: canvasWidth / 2 - bossActualWidth / 2,
     y: CANVAS_HEIGHT * 0.10, 
@@ -132,6 +131,12 @@ function createBossEnemy(
     isPerformingChargeAbility: false,
     lastAbilityEndTime: 0, // Initialize global skill cooldown timer
   };
+
+  if (currentWave > FIRST_BOSS_WAVE_NUMBER) {
+    newBoss.lastAbilityEndTime = performance.now(); // Force global cooldown on spawn for subsequent bosses
+  }
+
+  return newBoss;
 }
 
 export function createEnemyOrBoss(

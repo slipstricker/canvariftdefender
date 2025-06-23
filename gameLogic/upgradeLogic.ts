@@ -71,11 +71,11 @@ export const UPGRADES: Upgrade[] = [
     id: 'leech',
     numericId: '007',
     name: 'Drenagem Vital Cósmica',
-    description: 'Drena a energia vital dos inimigos cósmicos, convertendo 3% do dano causado em cura para você.',
+    description: 'Drena a energia vital dos inimigos cósmicos, convertendo 2% do dano causado em cura para você.',
     tier: 'incomum',
     apply: (player) => { 
-      player.lifeSteal += 0.03; 
-      player.lifeSteal = Math.min(player.lifeSteal, 0.30);
+      player.lifeSteal += 0.02; 
+      player.lifeSteal = Math.min(player.lifeSteal, 0.20);
     },
     maxApplications: 10,
   },
@@ -264,5 +264,44 @@ export const UPGRADES: Upgrade[] = [
       }
     },
     maxApplications: 2,
+  },
+  {
+    id: 'preciseStrike',
+    numericId: '019',
+    name: 'Golpe Preciso Menor',
+    description: 'Aperfeiçoa seus golpes críticos canalizando energia em pontos vulneráveis, aumentando o multiplicador de dano crítico em +0.1x. Cada nível aumenta em +0.1x.',
+    tier: 'comum',
+    apply: (player) => {
+      player.critMultiplier = (player.critMultiplier || 1.5) + 0.1;
+    },
+    maxApplications: 3,
+  },
+  {
+    id: 'kineticBoost',
+    numericId: '020',
+    name: 'Impulso Cinético',
+    description: 'Acelera seus projéteis com um súbito impulso de energia cinética, aumentando sua velocidade em +5%.',
+    tier: 'comum',
+    apply: (player) => {
+      player.projectileSpeedBonus = (player.projectileSpeedBonus || 0) + 0.05;
+    },
+    maxApplications: 5,
+  },
+  {
+    id: 'starlightRestoration',
+    numericId: '021',
+    name: 'Restauração Estelar Mínima',
+    description: 'Permite canalizar uma pequena e constante quantia de luz estelar curativa, regenerando 1 HP a cada 5 segundos. Cada nível aumenta a regeneração em 1 HP.',
+    tier: 'comum',
+    apply: (player) => {
+      player.passiveHpRegenAmount = (player.passiveHpRegenAmount || 0) + 1;
+      if (!player.passiveHpRegenInterval) {
+        player.passiveHpRegenInterval = 5000; // 5 seconds
+      }
+      if (player.lastPassiveHpRegenTime === undefined) {
+        player.lastPassiveHpRegenTime = performance.now(); // Start timer from now
+      }
+    },
+    maxApplications: 3,
   },
 ];

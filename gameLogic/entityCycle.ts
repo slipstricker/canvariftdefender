@@ -1,4 +1,5 @@
 
+
 import { Enemy, Player, Projectile, AppliedStatusEffect, EnemyType, AlienVisualVariant, EnemyUpdateResult, FloatingText, Particle, CenterScreenMessage, ParticleType, ProjectileEffectType } from '../types';
 import { 
     CANVAS_HEIGHT, CANVAS_WIDTH, ENEMY_PROJECTILE_COLOR, GRAVITY,
@@ -530,7 +531,7 @@ export function runEnemyUpdateCycle(
     setCenterMessageFn?: React.Dispatch<React.SetStateAction<CenterScreenMessage | null>>, 
     createParticleEffectFn?: (x: number, y: number, count: number, color: string, size?: number, speed?: number, life?: number, type?: ParticleType) => void 
 ): RunEnemyUpdateCycleResult {
-    const processedEnemiesList: Enemy[] = [];
+    let processedEnemiesList: Enemy[] = [];
     const newMinionsFromBoss: Enemy[] = [];
 
     currentEnemies.forEach(baseEnemy => {
@@ -573,7 +574,52 @@ export function runEnemyUpdateCycle(
         }
     });
 
-    return { processedEnemies: processedEnemiesList, newMinionsFromBoss: newMinionsFromBoss };
+    // Enemy-to-enemy separation logic
+    const separatedEnemies: Enemy[] = processedEnemiesList.map(e => ({ ...e })); // Create a mutable copy for this step
+
+    for (let i = 0; i < separatedEnemies.length; i++) {
+        const e1 = separatedEnemies[i];
+        // Exclude bosses and healing drones from being pushed by this simple logic
+        if (!e1 || e1.enemyType === 'boss' || e1.isHealingDrone) {
+            continue;
+        }
+
+        for (let j = i + 1; j < separatedEnemies.length; j++) {
+            const e2 = separatedEnemies[j];
+            // Also exclude bosses and healing drones from pushing others in this specific logic
+            if (!e2 || e2.enemyType === 'boss' || e2.isHealingDrone) {
+                continue;
+            }
+
+            const dx = (e1.x + e1.width / 2) - (e2.x + e2.width / 2);
+            const dy = (e1.y + e1.height / 2) - (e2.y + e2.height / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            const minSeparationDistance = (e1.width / 2 + e2.width / 2) * 0.9; // Allow slight overlap
+
+            if (distance < minSeparationDistance && distance > 0.001) { // distance > 0 to avoid division by zero
+                const overlap = minSeparationDistance - distance;
+                const pushAmount = overlap / 2; // Each enemy moves by half the overlap
+
+                const pushX = (dx / distance) * pushAmount;
+                const pushY = (dy / distance) * pushAmount;
+
+                // Apply separation
+                e1.x += pushX;
+                e1.y += pushY;
+                e2.x -= pushX;
+                e2.y -= pushY;
+
+                // Clamp to canvas boundaries (basic clamping, primary movement logic should handle "floor")
+                e1.x = Math.max(0, Math.min(e1.x, CANVAS_WIDTH - e1.width));
+                e1.y = Math.max(0, Math.min(e1.y, CANVAS_HEIGHT - e1.height));
+                e2.x = Math.max(0, Math.min(e2.x, CANVAS_WIDTH - e2.width));
+                e2.y = Math.max(0, Math.min(e2.y, CANVAS_HEIGHT - e2.height));
+            }
+        }
+    }
+    
+    return { processedEnemies: separatedEnemies, newMinionsFromBoss: newMinionsFromBoss };
 }
 
 

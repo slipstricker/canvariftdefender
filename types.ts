@@ -144,6 +144,12 @@ export interface Player extends GameObject {
   // Monetary Attraction Skill
   hasCoinAttractionSkill?: boolean;
   coinAttractionRadius?: number; 
+
+  // New skill properties
+  projectileSpeedBonus?: number; // For Kinetic Boost, additive bonus (e.g., 0.05 for +5%)
+  passiveHpRegenAmount?: number; // For Minimal Starlight Restoration, HP per tick
+  passiveHpRegenInterval?: number; // For Minimal Starlight Restoration, interval in ms
+  lastPassiveHpRegenTime?: number; // For Minimal Starlight Restoration, timestamp of last regen
 }
 
 export type EnemyType = 'standard' | 'boss' | 'splitter' | 'miniSplitter' | 'healing_drone';

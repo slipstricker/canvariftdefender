@@ -61,7 +61,8 @@ export function createPlayerProjectiles(
     internalTargetMouseX - projectileSpawnX
   );
 
-  const speed = 750;
+  const baseProjectileSpeed = 750;
+  const speed = baseProjectileSpeed * (1 + (player.projectileSpeedBonus || 0));
   const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE;
   const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE;
 

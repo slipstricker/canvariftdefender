@@ -98,6 +98,10 @@ export function getDefaultPlayerState(nickname: string = "Jogador Estelar", sele
     dashInvincibilityDuration: SKILL_DASH_INVINCIBILITY_DURATION,
     hasCoinAttractionSkill: false,
     coinAttractionRadius: 0,
+    projectileSpeedBonus: 0, // For Kinetic Boost
+    passiveHpRegenAmount: 0, // For Minimal Starlight Restoration
+    passiveHpRegenInterval: 5000, // For Minimal Starlight Restoration
+    lastPassiveHpRegenTime: 0, // For Minimal Starlight Restoration
   };
 }
 

@@ -45,6 +45,7 @@ export const UPGRADE_ICONS: Record<string, string> = {
   fragmentation: "💥", thunderbolt: "🌩️", appraisal: "📜", immortal: "😇", eyesight: "👁️",
   scorchedRounds: "♨️", cryoRounds: "❄️", piercingRounds: "🎯", seekerRounds: "🛰️", energyShield: "🛡️",
   damagingAura: "💢", mirroredMinion: "👥", 
+  preciseStrike: "🗡️", kineticBoost: "💨", starlightRestoration: "✨",
 };
 
 const COIN_DROP_SIZE = 16 * SPRITE_PIXEL_SIZE;
@@ -770,7 +771,7 @@ const App: React.FC = () => {
                 const angle = Math.atan2(targetY - miniatureCenterY, targetX - miniatureCenterX);
                 
                 const miniatureDamage = player.maxProjectileDamage * 0.20; // Damage reduced to 20%
-                const projectileSpeed = 600;
+                const projectileSpeed = 600 * (1 + (player.projectileSpeedBonus || 0));
                 const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE * 0.6; 
                 const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE * 0.6;
 
@@ -854,6 +855,17 @@ const App: React.FC = () => {
     setEnemyProjectiles(prev => updateProjectiles(prev, currentDeltaTime, false, [], (x,y,count,color,size,speed,life,type) => createParticleEffect(setParticles,x,y,count,color,size,speed,life,type), (proj, maxT, dmgFactor) => handleExplosion(proj,maxT, dmgFactor, playerRef.current, enemiesRef.current, adminConfigRef.current, setEnemies, setPlayer, setFloatingTexts, handleEnemyDeath, (x,y,c,col,sV,s,l,t) => createParticleEffect(setParticles, x,y,c,col,sV,s,l,t)), CANVAS_WIDTH, CANVAS_HEIGHT));
     
     setParticles(prev => updateParticleSystem(prev, currentDeltaTime, 1800)); 
+
+    // Passive HP Regeneration
+    if (playerRef.current.passiveHpRegenAmount && playerRef.current.passiveHpRegenAmount > 0 && playerRef.current.hp < playerRef.current.maxHp) {
+        if (performance.now() - (playerRef.current.lastPassiveHpRegenTime || 0) > (playerRef.current.passiveHpRegenInterval || 5000)) {
+            setPlayer(p => ({
+                ...p,
+                hp: Math.min(p.maxHp, p.hp + (p.passiveHpRegenAmount || 0)),
+                lastPassiveHpRegenTime: performance.now()
+            }));
+        }
+    }
 
     checkCollisions(
         playerProjectilesRef.current, setPlayerProjectiles, enemyProjectilesRef.current, setEnemyProjectiles,
