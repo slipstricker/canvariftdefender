@@ -2,6 +2,11 @@
 
 
 
+
+
+
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig,
@@ -17,7 +22,8 @@ import {
   SKILL_ID_DASH,
   PIXEL_FONT_FAMILY,
   WAVE_ANNOUNCEMENT_DURATION,
-  BOSS_MINION_RESPAWN_WARNING_DURATION
+  BOSS_MINION_RESPAWN_WARNING_DURATION,
+  PROJECTILE_ART_WIDTH, PROJECTILE_ART_HEIGHT
 } from './constants';
 import { ALL_HATS_SHOP, ALL_STAFFS_SHOP, PERMANENT_SKILLS_SHOP, DEFAULT_HAT_ID, DEFAULT_STAFF_ID, applyHatEffect, applyStaffEffectToPlayerBase } from './gameLogic/shopLogic';
 import { repositionAndResizeAllDynamicPlatforms } from './gameLogic/platformLogic';
@@ -34,7 +40,7 @@ import { parseCheatNickname } from './gameLogic/cheatLogic';
 import { createParticleEffect, triggerThunderboltStrikes, applyBurnEffect, applyChillEffect, handleExplosion } from './gameLogic/gameEffects';
 import { drawBackground } from './gameLogic/rendering/backgroundRenderer';
 import { drawPlatforms } from './gameLogic/rendering/platformRenderer';
-import { drawPlayerAndAccessories, drawEnemies, drawProjectiles as drawProjectilesRenderer, drawParticles as drawParticlesRenderer, drawCoinDrops, drawActiveLightningBolts, drawFloatingTexts as drawFloatingTextsRenderer } from './gameLogic/rendering/entityRenderer';
+import { drawPlayerAndAccessories, drawEnemies, drawProjectiles as drawProjectilesRenderer, drawParticles as drawParticlesRenderer, drawCoinDrops, drawActiveLightningBolts, drawFloatingTexts as drawFloatingTextsRenderer, drawMiniatures } from './gameLogic/rendering/entityRenderer';
 import { drawHUD, drawCenterScreenMessages, drawMouseCursor, drawSkillTooltip } from './gameLogic/rendering/hudRenderer';
 import GameUI from './components/GameUI';
 import { fetchLeaderboard, submitScore } from './onlineLeaderboardService';
@@ -45,6 +51,7 @@ export const UPGRADE_ICONS: Record<string, string> = {
   catalyst: "🔥", growth: "❤️", resonance: "⚡", swift: "👟", renew: "✚", leech: "🩸",
   fragmentation: "💥", thunderbolt: "🌩️", appraisal: "📜", immortal: "😇", eyesight: "👁️",
   scorchedRounds: "♨️", cryoRounds: "❄️", piercingRounds: "🎯", seekerRounds: "🛰️", energyShield: "🛡️",
+  damagingAura: "💢", mirroredMinion: "👥", 
 };
 
 const COIN_DROP_SIZE = 16 * SPRITE_PIXEL_SIZE;
@@ -712,6 +719,95 @@ const App: React.FC = () => {
     }
   }, [setParticles, playSoundFromManager, triggerReviveAOEDamage]); 
 
+  const handleMiniatureLogic = useCallback(() => {
+    const player = playerRef.current;
+    if (!player.miniatures || player.miniatures.count === 0 || enemiesRef.current.length === 0 || gameStateRef.current !== GameState.Playing) {
+        return;
+    }
+
+    const miniaturesConfig = player.miniatures;
+    const now = performance.now();
+    const miniatureSizeScale = 0.35;
+
+    let newMiniatureProjectiles: Projectile[] = [];
+
+    for (let i = 0; i < miniaturesConfig.count; i++) {
+        const miniatureAttackSpeed = player.attackSpeed * 0.5;
+        if (miniatureAttackSpeed <= 0) continue; 
+        const miniatureShootCooldownMs = 1000 / miniatureAttackSpeed;
+
+        if (now - (miniaturesConfig.lastShotTimes[i] || 0) > miniatureShootCooldownMs) {
+            const sideMultiplier = (i === 0) ? -1 : 1;
+            const offsetXFromPlayerCenter = (player.width * 0.5 + (player.width * miniatureSizeScale * 0.5) + 15 * SPRITE_PIXEL_SIZE) * sideMultiplier;
+            const offsetYFromPlayerCenter = -player.height * 0.45;
+
+            const miniatureCenterX = player.x + player.width / 2 + offsetXFromPlayerCenter;
+            const miniatureCenterY = player.y + player.height / 2 + offsetYFromPlayerCenter;
+
+            let closestEnemy: Enemy | null = null;
+            let minDistanceSq = Infinity;
+
+            enemiesRef.current.forEach(enemy => {
+                if (enemy.hp > 0) {
+                    const enemyCenterX = enemy.x + enemy.width / 2;
+                    const enemyCenterY = enemy.y + enemy.height / 2;
+                    const dx = enemyCenterX - miniatureCenterX;
+                    const dy = enemyCenterY - miniatureCenterY;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < minDistanceSq) {
+                        minDistanceSq = distSq;
+                        closestEnemy = enemy;
+                    }
+                }
+            });
+
+            if (closestEnemy) {
+                miniaturesConfig.lastShotTimes[i] = now;
+
+                const targetX = closestEnemy.x + closestEnemy.width / 2;
+                const targetY = closestEnemy.y + closestEnemy.height / 2;
+                const angle = Math.atan2(targetY - miniatureCenterY, targetX - miniatureCenterX);
+                
+                const miniatureDamage = player.maxProjectileDamage * 0.20; // Damage reduced to 20%
+                const projectileSpeed = 600;
+                const projectileWidth = PROJECTILE_ART_WIDTH * SPRITE_PIXEL_SIZE * 0.6; 
+                const projectileHeight = PROJECTILE_ART_HEIGHT * SPRITE_PIXEL_SIZE * 0.6;
+
+                const staffItem = ALL_STAFFS_SHOP.find(s => s.id === player.selectedStaffId) || ALL_STAFFS_SHOP[0];
+
+                newMiniatureProjectiles.push({
+                    x: miniatureCenterX - projectileWidth / 2,
+                    y: miniatureCenterY - projectileHeight / 2,
+                    width: projectileWidth,
+                    height: projectileHeight,
+                    vx: Math.cos(angle) * projectileSpeed,
+                    vy: Math.sin(angle) * projectileSpeed,
+                    damage: miniatureDamage,
+                    owner: 'player',
+                    color: staffItem.projectileColor,
+                    glowEffectColor: staffItem.projectileGlowColor,
+                    appliedEffectType: 'standard',
+                    hitsLeft: 1,
+                    isHoming: false,
+                    homingTargetId: null,
+                    homingStrength: 0,
+                    damagedEnemyIDs: [],
+                    draw: () => {},
+                    trailSpawnTimer: 0.05 + Math.random() * 0.05,
+                });
+                playSoundFromManager('/assets/sounds/player_shoot_magic_01.wav', 0.15);
+            }
+        }
+    }
+    if (newMiniatureProjectiles.length > 0) {
+        setPlayerProjectiles(prev => [...prev, ...newMiniatureProjectiles]);
+    }
+    if(player.miniatures) { 
+       setPlayer(p => ({ ...p, miniatures: { ...p.miniatures!, lastShotTimes: [...miniaturesConfig.lastShotTimes] }}));
+    }
+  }, [playerRef, enemiesRef, setPlayerProjectiles, playSoundFromManager, setPlayer]);
+
+
   const update = useCallback((deltaTime: number) => {
     if (gameStateRef.current !== GameState.Playing) {
       lastFrameTimeRef.current = performance.now(); 
@@ -741,6 +837,8 @@ const App: React.FC = () => {
         gameContextForUpgrades.activateThunderbolts(1, 0, newLightningBolts.mouseX, newLightningBolts.mouseY);
     }
     
+    handleMiniatureLogic(); // Handle miniature shooting logic
+
     const { processedEnemies, newMinionsFromBoss } = runEnemyUpdateCycle(
         enemiesRef.current, playerRef.current, currentDeltaTime, gameContextForUpgrades.addEnemyProjectile,
         currentWaveRef.current, playerProjectilesRef.current, handleEnemyDeath, setFloatingTexts, playSoundFromManager,
@@ -765,6 +863,46 @@ const App: React.FC = () => {
         coinDropsRef.current, setCoinDrops, playerCoins, setPlayerCoins 
     );
     
+    // Coin attraction logic
+    if (playerRef.current.hasCoinAttractionSkill && playerRef.current.coinAttractionRadius && playerRef.current.coinAttractionRadius > 0) {
+      const attractionStrength = 0.08; // Slightly stronger pull
+      const maxAttractionSpeed = 450 * SPRITE_PIXEL_SIZE; 
+
+      setCoinDrops(prevCoins => prevCoins.map(coin => {
+        const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+        const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
+        const coinCenterX = coin.x + coin.width / 2;
+        const coinCenterY = coin.y + coin.height / 2;
+
+        const dx = playerCenterX - coinCenterX;
+        const dy = playerCenterY - coinCenterY;
+        const distanceSq = dx * dx + dy * dy;
+
+        if (distanceSq < (playerRef.current.coinAttractionRadius! * playerRef.current.coinAttractionRadius!)) {
+          const distance = Math.sqrt(distanceSq);
+          if (distance > 1) { 
+            // Determine base pull velocity components
+            let pullVx = (dx / distance) * maxAttractionSpeed * attractionStrength;
+            let pullVy = (dy / distance) * maxAttractionSpeed * attractionStrength;
+            
+            // Combine with existing coin velocity
+            let newVx = (coin.vx || 0) + pullVx;
+            let newVy = coin.vy + pullVy; // Add to existing vy, which includes gravity
+
+            // Cap total speed if it exceeds maxAttractionSpeed
+            const currentTotalSpeed = Math.sqrt(newVx * newVx + newVy * newVy);
+            if (currentTotalSpeed > maxAttractionSpeed) {
+              newVx = (newVx / currentTotalSpeed) * maxAttractionSpeed;
+              newVy = (newVy / currentTotalSpeed) * maxAttractionSpeed;
+            }
+            return { ...coin, vx: newVx, vy: newVy };
+          }
+        }
+        return coin; // Return coin as is if not in range or already at player
+      }));
+    }
+
+
     const waveUpdateResult = updateWaveSystem({
         deltaTime: currentDeltaTime, waveStatus, timeToNextWaveAction, currentWave: currentWaveRef.current,
         enemiesToSpawnThisWave, enemiesSpawnedThisWaveCount, currentWaveConfig: currentWaveConfigRef.current,
@@ -790,14 +928,22 @@ const App: React.FC = () => {
     setCoinDrops(prevDrops => prevDrops.map(cd => {
         let newVy = cd.vy + 1800 * currentDeltaTime; 
         let newY = cd.y + newVy * currentDeltaTime;
+        let newVx = cd.vx || 0; // Preserve horizontal velocity for attraction
         let newOnGround = cd.onGround;
         const groundPlatformHeight = platforms.find(p=>p.id==='ground')?.height || 0;
+        
         if (newY + cd.height > CANVAS_HEIGHT - groundPlatformHeight) {
             newY = CANVAS_HEIGHT - groundPlatformHeight - cd.height;
             newVy = 0; 
+            newVx *= 0.9; // Friction on ground
             newOnGround = true;
         }
-        return {...cd, y:newY, vy:newVy, onGround:newOnGround, life: cd.life - (newOnGround ? currentDeltaTime * 0.5 : currentDeltaTime)};
+        
+        // Apply horizontal movement from attraction (or existing vx if not attracted)
+        let finalX = cd.x + newVx * currentDeltaTime;
+        finalX = Math.max(0, Math.min(finalX, CANVAS_WIDTH - cd.width)); // Clamp to canvas X
+
+        return {...cd, x: finalX, y:newY, vx: newVx, vy:newVy, onGround:newOnGround, life: cd.life - (newOnGround ? currentDeltaTime * 0.5 : currentDeltaTime)};
       }).filter(cd => cd.life > 0)
     );
 
@@ -805,7 +951,7 @@ const App: React.FC = () => {
       setScreenShake({ ...screenShake, active: false });
     }
 
-  }, [isSlowMotionActive, centerScreenMessage, waveStatus, timeToNextWaveAction, enemiesToSpawnThisWave, enemiesSpawnedThisWaveCount, handleEnemyDeath, handleGameOver, screenShake.active, screenShake.duration, screenShake.startTime, platforms, gameContextForUpgrades, playerCoins, initiateReviveSequence, playSoundFromManager, handleLevelUp]);
+  }, [isSlowMotionActive, centerScreenMessage, waveStatus, timeToNextWaveAction, enemiesToSpawnThisWave, enemiesSpawnedThisWaveCount, handleEnemyDeath, handleGameOver, screenShake.active, screenShake.duration, screenShake.startTime, platforms, gameContextForUpgrades, playerCoins, initiateReviveSequence, playSoundFromManager, handleLevelUp, handleMiniatureLogic]);
 
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -823,6 +969,7 @@ const App: React.FC = () => {
     drawBackground(ctx, stars, nebulae, gameTime, CANVAS_WIDTH, CANVAS_HEIGHT);
     drawPlatforms(ctx, platforms, gameTime);
     drawPlayerAndAccessories(ctx, playerRef.current, gameTime, mouseStateRef.current, canvasRef.current.getBoundingClientRect(), CANVAS_WIDTH, CANVAS_HEIGHT, ALL_HATS_SHOP, ALL_STAFFS_SHOP);
+    // drawMiniatures is now called within drawPlayerAndAccessories
     drawEnemies(ctx, enemiesRef.current, gameTime, (x,y,count,color,size,speed,life,type) => createParticleEffect(setParticles,x,y,count,color,size,speed,life,type));
     drawProjectilesRenderer(ctx, playerProjectilesRef.current, enemyProjectilesRef.current, gameTime);
     drawParticlesRenderer(ctx, particles, gameTime, PIXEL_FONT_FAMILY);

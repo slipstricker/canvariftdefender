@@ -6,7 +6,8 @@ import {
     PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, 
     PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_DEFENSE, PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE, PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE,
     SKILL_DASH_DURATION, SKILL_DASH_SPEED, SKILL_DASH_INVINCIBILITY_DURATION,
-    SKILL_ID_DOUBLE_JUMP, SKILL_ID_DASH, SKILL_ID_XP_BOOST, SKILL_ID_COIN_MAGNET
+    SKILL_ID_DOUBLE_JUMP, SKILL_ID_DASH, SKILL_ID_XP_BOOST, SKILL_ID_COIN_LUCK, SKILL_ID_COIN_ATTRACTION, // Updated and new ID
+    PLAYER_COIN_ATTRACTION_RADIUS, SPRITE_PIXEL_SIZE
 } from '../constants';
 
 
@@ -162,10 +163,10 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
     })),
   },
   {
-    id: SKILL_ID_COIN_MAGNET,
-    numericId: '104',
-    name: 'Imã de Moedas Galáctico',
-    icon: '💰',
+    id: SKILL_ID_COIN_LUCK, // Renamed from SKILL_ID_COIN_MAGNET
+    numericId: '104', // Kept numeric ID for cheat compatibility
+    name: 'Sorte Monetária', // Renamed
+    icon: '🍀', // Changed icon
     baseDescription: 'Aumenta permanentemente a chance de inimigos derrubarem moedas.',
     type: 'permanent_skill',
     levels: Array.from({ length: 10 }, (_, i) => {
@@ -182,6 +183,25 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
         applyEffect: (player: Player) => { player.coinDropBonus = (i + 1) * 0.02; },
       };
     }),
+  },
+  {
+    id: SKILL_ID_COIN_ATTRACTION,
+    numericId: '105',
+    name: 'Atração Monetária',
+    icon: '🧲',
+    baseDescription: 'Atrai moedas próximas automaticamente para você.',
+    type: 'permanent_skill',
+    levels: [
+      { 
+        level: 1, 
+        price: 10, 
+        effectDescription: `Habilita Atração Monetária (Raio: ${PLAYER_COIN_ATTRACTION_RADIUS / SPRITE_PIXEL_SIZE} blocos)`, 
+        applyEffect: (player: Player) => { 
+          player.hasCoinAttractionSkill = true; 
+          player.coinAttractionRadius = PLAYER_COIN_ATTRACTION_RADIUS; 
+        } 
+      },
+    ],
   },
 ];
 

@@ -10,7 +10,8 @@ import {
     GROUND_PLATFORM_HEIGHT,
     PLAYER_MOVEMENT_SPEED, PLAYER_INITIAL_ATTACK_SPEED, PLAYER_INITIAL_CRIT_CHANCE, PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE, PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE, PLAYER_INITIAL_DEFENSE,
     SKILL_DASH_DURATION, SKILL_DASH_SPEED, SKILL_DASH_INVINCIBILITY_DURATION,
-    INITIAL_WAVE_CONFIG, ADMIN_START_WAVE, DYNAMIC_PLATFORM_HEIGHT
+    INITIAL_WAVE_CONFIG, ADMIN_START_WAVE, DYNAMIC_PLATFORM_HEIGHT,
+    PLAYER_COIN_ATTRACTION_RADIUS, SKILL_ID_COIN_ATTRACTION, SKILL_ID_COIN_LUCK
 } from '../constants';
 import { ALL_HATS_SHOP, ALL_STAFFS_SHOP, PERMANENT_SKILLS_SHOP, DEFAULT_HAT_ID, DEFAULT_STAFF_ID, applyHatEffect, applyStaffEffectToPlayerBase } from './shopLogic';
 import { PLATFORMS as InitialStaticPlatformsConfig, repositionAndResizeAllDynamicPlatforms } from './platformLogic';
@@ -95,6 +96,8 @@ export function getDefaultPlayerState(nickname: string = "Jogador Estelar", sele
     dashTimer: 0,
     dashSpeedValue: SKILL_DASH_SPEED,
     dashInvincibilityDuration: SKILL_DASH_INVINCIBILITY_DURATION,
+    hasCoinAttractionSkill: false,
+    coinAttractionRadius: 0,
   };
 }
 
@@ -106,6 +109,9 @@ export function applyPermanentSkillEffectsToPlayer(p: Player, purchasedSkills: R
     tempPlayer.dashCooldownTime = 30; // Default dash cooldown if skill is re-applied
     tempPlayer.xpBonus = 1; // Base XP bonus
     tempPlayer.coinDropBonus = 0; // Base coin drop bonus
+    tempPlayer.hasCoinAttractionSkill = false; // Reset coin attraction
+    tempPlayer.coinAttractionRadius = 0;    // Reset coin attraction radius
+
 
     Object.entries(purchasedSkills).forEach(([skillId, data]) => {
         const skillDef = PERMANENT_SKILLS_SHOP.find(s => s.id === skillId);

@@ -68,7 +68,7 @@ export const DYNAMIC_PLATFORM_HEIGHT = Math.round(baseDynamicPlatformHeight * 0.
 
 
 export const XP_PER_LEVEL_BASE = 100;
-export const XP_LEVEL_MULTIPLIER = 1.25;
+export const XP_LEVEL_MULTIPLIER = 1.30;
 
 // Wave System Configuration
 export const INITIAL_WAVE_CONFIG = {
@@ -136,9 +136,9 @@ export const ENEMY_CONFIG = {
       finalMultiplier: 1.10,
     },
     xp: {
-      base: 10,
-      perPlayerLevel: 1,
-      perWaveFactor: 0.10, // Total XP *= (1 + (wave - 1) * perWaveFactor)
+      base: 9, // Was 10, reduced by 10%
+      perPlayerLevel: 1, // Kept as is, or could also be reduced if desired e.g. Math.floor(1 * 0.9) = 0
+      perWaveFactor: 0.07, // Was 0.10, reduced by 30% -> 0.10 * 0.7 = 0.07
     }
   },
   splitter: { // factors applied to Standard stats for the same wave/level
@@ -257,7 +257,11 @@ export const COSMETIC_DATA_KEY = 'pixelRiftDefendersCosmeticData';
 export const SKILL_ID_DOUBLE_JUMP = 'skill_double_jump';
 export const SKILL_ID_DASH = 'skill_dash';
 export const SKILL_ID_XP_BOOST = 'skill_xp_boost';
-export const SKILL_ID_COIN_MAGNET = 'skill_coin_magnet';
+export const SKILL_ID_COIN_LUCK = 'skill_coin_luck'; // Renamed from skill_coin_magnet
+export const SKILL_ID_COIN_ATTRACTION = 'skill_coin_attraction'; // New skill
+
+// --- PLAYER COIN ATTRACTION ---
+export const PLAYER_COIN_ATTRACTION_RADIUS = 100 * SPRITE_PIXEL_SIZE;
 
 
 // Ground Platform Art Dimensions

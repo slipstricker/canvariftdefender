@@ -232,5 +232,39 @@ export const UPGRADES: Upgrade[] = [
       }
     },
     maxApplications: 1, 
-  }
+  },
+  {
+    id: 'damagingAura',
+    numericId: '017',
+    name: 'Aura Danosa',
+    description: 'Seu corpo causa dano de contato (10% do dano médio do projétil). +10% por nível (máx 50%).',
+    tier: 'raro',
+    apply: (player) => {
+      if (player.damagingAuraFactor === undefined || player.damagingAuraFactor < 0.1) {
+        player.damagingAuraFactor = 0.10;
+      } else {
+        player.damagingAuraFactor = Math.min(0.50, player.damagingAuraFactor + 0.10);
+      }
+    },
+    maxApplications: 5, 
+  },
+  {
+    id: 'mirroredMinion',
+    numericId: '018',
+    name: 'Miniatura Espelhada',
+    description: 'Invoca 1 pequena cópia sua que atira automaticamente (20% dano do projétil máx., 50% vel. tiro). Nv2: +1 cópia (total 2).',
+    tier: 'raro',
+    apply: (player) => {
+      if (!player.miniatures) {
+        player.miniatures = { count: 1, lastShotTimes: [0] };
+      } else if (player.miniatures.count < 2) {
+        player.miniatures.count++;
+        // Ensure lastShotTimes array has enough entries
+        while (player.miniatures.lastShotTimes.length < player.miniatures.count) {
+          player.miniatures.lastShotTimes.push(0);
+        }
+      }
+    },
+    maxApplications: 2,
+  },
 ];

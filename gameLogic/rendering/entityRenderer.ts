@@ -1,5 +1,6 @@
 
 
+
 // gameLogic/rendering/entityRenderer.ts
 import {
     Player, Enemy, Projectile, Particle, ActiveLightningBolt, FloatingText,
@@ -11,7 +12,83 @@ import {
     drawMultiTentacleAlienCanvas, drawThreeEyedBossAlienCanvas, drawHealingDroneCanvas
 } from '../canvasArt';
 import { hexToRgba } from '../utils'; // Ensure this path is correct
-import { SPRITE_PIXEL_SIZE, BOSS_LASER_CHARGE_TIME_MS } from '../../constants'; // For particle effects, if needed
+import { SPRITE_PIXEL_SIZE, BOSS_LASER_CHARGE_TIME_MS, CANVAS_WIDTH, CANVAS_HEIGHT } from '../../constants'; // For particle effects, if needed
+import { ALL_HATS_SHOP, ALL_STAFFS_SHOP } from '../shopLogic';
+
+
+// Miniatures (drawn after main player)
+export function drawMiniatures(
+    ctx: CanvasRenderingContext2D,
+    player: Player, // The main player
+    gameTime: number
+) {
+    if (!player.miniatures || player.miniatures.count === 0) {
+        return;
+    }
+
+    const miniatureSizeScale = 0.35;
+
+    for (let i = 0; i < player.miniatures.count; i++) {
+        const sideMultiplier = (i === 0) ? -1 : 1; // Left (i=0), Right (i=1)
+        
+        const miniatureBaseOffsetX = player.width * 0.5 + (player.width * miniatureSizeScale * 0.5) + 15 * SPRITE_PIXEL_SIZE;
+        const miniatureBaseOffsetY = -player.height * 0.45; 
+
+        // Movement parameters
+        const bobAmplitudeY = player.height * miniatureSizeScale * 0.15; 
+        const bobSpeedY = 2.5 + i * 0.3; 
+        const orbitAmplitudeX = player.width * miniatureSizeScale * 0.1;
+        const orbitSpeedX = 1.5 + i * 0.2;
+
+        const dynamicOffsetX = Math.sin(gameTime * orbitSpeedX + i * Math.PI) * orbitAmplitudeX; // Add phase offset for second mini
+        const dynamicOffsetY = Math.sin(gameTime * bobSpeedY + i * Math.PI * 0.7) * bobAmplitudeY;
+
+        const offsetXFromPlayerCenter = (miniatureBaseOffsetX + dynamicOffsetX) * sideMultiplier;
+        const offsetYFromPlayerCenter = miniatureBaseOffsetY + dynamicOffsetY;
+
+
+        const miniatureWorldCenterX = player.x + player.width / 2 + offsetXFromPlayerCenter;
+        const miniatureWorldCenterY = player.y + player.height / 2 + offsetYFromPlayerCenter;
+        
+        const scaledMiniatureWidth = player.width * miniatureSizeScale;
+        const scaledMiniatureHeight = player.height * miniatureSizeScale;
+
+        const miniatureDrawObject: Player = {
+            ...player, 
+            x: 0, 
+            y: 0,
+            facingDirection: player.facingDirection, // Miniatures face the same direction as player
+            animationState: player.animationState,   // Miniatures mimic player animation state
+        };
+
+        ctx.save();
+        ctx.translate(miniatureWorldCenterX - scaledMiniatureWidth / 2, miniatureWorldCenterY - scaledMiniatureHeight / 2);
+        ctx.scale(miniatureSizeScale, miniatureSizeScale);
+        
+        drawPlayerCanvas(ctx, miniatureDrawObject, gameTime + i * 0.3);
+
+        if (player.selectedHatId) {
+            const hatItem = ALL_HATS_SHOP.find(h => h.id === player.selectedHatId);
+            if (hatItem) {
+                drawHatCanvas(ctx, hatItem, miniatureDrawObject, gameTime + i * 0.3);
+            }
+        }
+
+        if (player.selectedStaffId) {
+            const staffItem = ALL_STAFFS_SHOP.find(s => s.id === player.selectedStaffId);
+            if (staffItem) {
+                const miniatureMouseDummy: MouseState = {
+                    x: miniatureDrawObject.x + (player.facingDirection === 'right' ? 1000 : -1000) / miniatureSizeScale, 
+                    y: miniatureDrawObject.y + player.height / 2, 
+                    isDown: false,
+                };
+                drawStaffCanvas(ctx, staffItem, miniatureDrawObject, gameTime + i * 0.3, miniatureMouseDummy, null, CANVAS_WIDTH, CANVAS_HEIGHT);
+            }
+        }
+        ctx.restore();
+    }
+}
+
 
 // Player and Accessories
 export function drawPlayerAndAccessories(
@@ -85,6 +162,9 @@ export function drawPlayerAndAccessories(
         ctx.fill();
         ctx.lineWidth = 1; 
     }
+
+    // After drawing the main player, draw miniatures if any
+    drawMiniatures(ctx, player, gameTime);
 }
 
 // Enemies

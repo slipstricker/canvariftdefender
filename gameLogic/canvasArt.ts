@@ -1,7 +1,7 @@
 
 
 import { Enemy, Player, HatItem, StaffItem, Projectile, ProjectileEffectType, Platform, MouseState, ParticleType } from '../types';
-import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR, HEALING_DRONE_BLINK_SPEED, BOSS_LASER_COLOR, BOSS_LASER_GLOW_COLOR } from '../constants';
+import { SPRITE_PIXEL_SIZE, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_ART_WIDTH, PLAYER_ART_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT, PLAYER_PROJECTILE_COLOR, HEALING_DRONE_BLINK_SPEED, BOSS_LASER_COLOR, BOSS_LASER_GLOW_COLOR, SKILL_DASH_INVINCIBILITY_DURATION } from '../constants';
 import { SUPER_ALIEN_PALETTE_REF, SPLITTER_PALETTE_REF, MINI_ALIEN_PALETTE_REF } from './spriteArt'; // Import palette refs
 import { hexToRgba, isColorDark } from './utils';
 
@@ -51,6 +51,35 @@ export function drawPlayerCanvas(ctx: CanvasRenderingContext2D, player: Player, 
   ctx.quadraticCurveTo(pW/2, pH + idleBob * 0.7, pW/2 - bodyWidth/2 * 0.85, pH - shoeHeight + idleBob); 
   ctx.closePath();
   ctx.fill();
+
+  // Damaging Aura visual effect on player's robe
+  if (player.damagingAuraFactor && player.damagingAuraFactor > 0 &&
+      !(player.isInvincible && player.invincibilityDuration === (player.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) && performance.now() < player.lastHitTime + (player.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION))) {
+      
+      ctx.save(); 
+
+      const auraPulse = 0.4 + Math.sin(gameTime * 3.5) * 0.3; 
+      ctx.strokeStyle = `rgba(255, 100, 0, ${auraPulse})`; 
+      ctx.lineWidth = pW * 0.10; 
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      
+      ctx.shadowColor = `rgba(255, 69, 0, ${auraPulse * 0.5})`;
+      ctx.shadowBlur = 5;
+      ctx.shadowOffsetX = 1;
+      ctx.shadowOffsetY = 1;
+
+      ctx.beginPath();
+      ctx.moveTo(pW/2 - bodyWidth/2, bodyYOffset + bodyHeight * 0.15 + idleBob); 
+      ctx.quadraticCurveTo(pW/2, bodyYOffset + idleBob * 0.5, pW/2 + bodyWidth/2, bodyYOffset + bodyHeight * 0.15 + idleBob); 
+      ctx.lineTo(pW/2 + bodyWidth/2 * 0.85, pH - shoeHeight + idleBob); 
+      ctx.quadraticCurveTo(pW/2, pH + idleBob * 0.7, pW/2 - bodyWidth/2 * 0.85, pH - shoeHeight + idleBob); 
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.restore(); 
+  }
+
 
   ctx.fillStyle = `rgba(190, 220, 255, ${0.3 + Math.sin(gameTime * 1.5) * 0.1})`; 
   const runeCount = 5;

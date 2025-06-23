@@ -234,7 +234,7 @@ export function updatePlayerState(
              createParticleEffectFn(
                 newPlayer.x + newPlayer.width / 2, // Start from player center
                 newPlayer.y + newPlayer.height / 2,
-                1, // Create one particle at a time for variety
+                20, // Create one particle at a time for variety
                 `rgba(173, 216, 230, ${0.6 + Math.random() * 0.3})`, // Light blue, varied alpha
                 10 + Math.random() * 7, // Varied size
                 speed, // Varied speed
@@ -248,7 +248,7 @@ export function updatePlayerState(
          createParticleEffectFn(
             newPlayer.x + newPlayer.width / 2,
             newPlayer.y + newPlayer.height / 2,
-            2, // Fewer particles for continuous trail
+            50, // Fewer particles for continuous trail
             `rgba(200, 220, 255, ${0.4 + Math.random() * 0.2})`, // Slightly different color/alpha
             7 + Math.random() * 5,
             120 + Math.random() * 60, // Slower speed for trailing effect

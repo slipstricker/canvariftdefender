@@ -307,4 +307,63 @@ export function checkCollisions(
       return true; 
     });
     setCoinDrops(newCoinDrops);
+
+    // Player direct contact with Enemy (for Damaging Aura)
+    if (player.damagingAuraFactor && player.damagingAuraFactor > 0 &&
+        !(player.isInvincible && player.invincibilityDuration === (player.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) && performance.now() < player.lastHitTime + (player.dashInvincibilityDuration || SKILL_DASH_INVINCIBILITY_DURATION) )
+    ) {
+        const auraDamageThisTick = ((player.minProjectileDamage + player.maxProjectileDamage) / 2) * player.damagingAuraFactor;
+        const now = performance.now();
+
+        setEnemies(prevEnemies => prevEnemies.map(enemy => {
+            if (!enemy || enemy.hp <= 0 || (enemy.enemyType === 'boss' && enemy.isChargingLaser)) return null;
+
+            if (player.x < enemy.x + enemy.width &&
+                player.x + player.width > enemy.x &&
+                player.y < enemy.y + enemy.height &&
+                player.y + player.height > enemy.y) {
+
+                if (now - (enemy.lastDamagedByAuraTime || 0) > 1000) { // 1 second cooldown
+                    createParticleEffectFn(
+                        enemy.x + enemy.width / 2,
+                        enemy.y + enemy.height / 2,
+                        5, '#FF4500', 
+                        enemy.width * 0.2, 
+                        50 * SPRITE_PIXEL_SIZE,
+                        0.3
+                    );
+
+                    const damageText: FloatingText = {
+                        id: `auraDmg-${performance.now()}-${enemy.id}`,
+                        text: `${Math.round(auraDamageThisTick)}`,
+                        x: enemy.x + enemy.width / 2,
+                        y: enemy.y,
+                        vy: -70, life: 0.6, initialLife: 0.6, color: "#FF6347", fontSize: 18,
+                    };
+                    setFloatingTexts(prev => [...prev, damageText]);
+
+                    let newHp = enemy.hp - auraDamageThisTick;
+                    let updatedFuryMode = enemy.inFuryMode;
+
+                    if (enemy.enemyType === 'boss' && !enemy.inFuryMode && newHp <= enemy.maxHp * BOSS_FURY_MODE_HP_THRESHOLD) {
+                        updatedFuryMode = true;
+                        const furyText: FloatingText = {
+                            id: `fury-aura-${performance.now()}`, text: "CHEFE EM MODO FÚRIA!",
+                            x: enemy.width > 0 ? enemy.width / 2 : 500, 
+                            y: enemy.height > 0 ? enemy.height / 2 - 100 : 300, 
+                            vy: 0, life: 3, initialLife: 3, color: "#FF00FF", fontSize: 16, 
+                        };
+                        setFloatingTexts(prevFt => [...prevFt, furyText]);
+                    }
+
+                    if (newHp <= 0) {
+                        handleEnemyDeath(enemy);
+                        return null;
+                    }
+                    return { ...enemy, hp: newHp, inFuryMode: updatedFuryMode, lastDamagedByAuraTime: now };
+                }
+            }
+            return enemy;
+        }).filter(Boolean) as Enemy[]);
+    }
 }

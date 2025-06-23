@@ -131,6 +131,19 @@ export interface Player extends GameObject {
   dashSpeedValue?: number;
   dashDirection?: 'left' | 'right';
   dashInvincibilityDuration?: number; 
+
+  // Aura Danosa (Damaging Aura) Skill
+  damagingAuraFactor?: number; // e.g., 0.1 for 10%, up to 0.5 for 50% of avg projectile damage
+
+  // Miniatura Espelhada (Mirrored Miniature) Skill
+  miniatures?: {
+    count: number;
+    lastShotTimes: number[];
+  };
+
+  // Monetary Attraction Skill
+  hasCoinAttractionSkill?: boolean;
+  coinAttractionRadius?: number; 
 }
 
 export type EnemyType = 'standard' | 'boss' | 'splitter' | 'miniSplitter' | 'healing_drone';
@@ -200,6 +213,9 @@ export interface Enemy extends GameObject {
   
   // Boss Global Ability Cooldown
   lastAbilityEndTime?: number; // Timestamp when the last major ability finished
+
+  // Aura Danosa cooldown tracking
+  lastDamagedByAuraTime?: number;
 }
 
 export type ProjectileEffectType = 'standard' | 'trident' | 'boomstaff' | 'thunder_staff' | 'emerald_homing' | 'frozen_tip' | 'shadow_bolt' | 'star_shard' | 'plasma_ball' | 'comet_fragment' | 'boss_laser'; 
@@ -382,6 +398,7 @@ export interface SkillLevel {
   dashCooldown?: number;
   xpBonus?: number; 
   coinDropBonus?: number; 
+  coinAttractionRadius?: number;
 }
 
 export interface LeveledSkill {
