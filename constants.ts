@@ -206,7 +206,7 @@ export const BOSS_FURY_MINION_SPAWN_COOLDOWN = 5;
 export const BOSS_MINION_RESPAWN_WARNING_DURATION = 2; 
 export const BOSS_MAX_MINIONS_NORMAL = 3;
 export const BOSS_MAX_MINIONS_FURY = 5;
-export const BOSS_FURY_MODE_HP_THRESHOLD = 0.40; 
+export const BOSS_FURY_MODE_HP_THRESHOLD = 0.25; 
 
 // Boss Teleport Ability Constants
 export const BOSS_TELEPORT_COOLDOWN_MS = 10000; 
@@ -219,7 +219,7 @@ export const BOSS_LASER_CHARGE_TIME_MS = 2000;
 export const BOSS_LASER_COOLDOWN_MS = 15000;
 export const BOSS_LASER_SPEED = 2500; // Base speed at which the laser visually extends, pixels per second
 export const BOSS_LASER_SPEED_INCREASE_PER_BOSS_WAVE = 0.10; // 10% increase per boss wave after the first
-export const BOSS_LASER_MAX_TOTAL_SPEED_MULTIPLIER = 1.5; // Max speed is 150% of base (50% increase)
+export const BOSS_LASER_MAX_TOTAL_SPEED_MULTIPLIER = 2; // Max speed is 150% of base (50% increase)
 export const BOSS_LASER_COLOR = '#FF0000'; // Red
 export const BOSS_LASER_GLOW_COLOR = '#FF6347'; // Tomato
 export const BOSS_LASER_WIDTH_FACTOR = 0.05 * 1.3; // Factor of boss's own width for laser thickness (Increased by 30%)
