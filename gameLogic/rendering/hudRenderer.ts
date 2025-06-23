@@ -1,4 +1,3 @@
-
 // gameLogic/rendering/hudRenderer.ts
 import { Player, DisplayedSkillInfo, Platform, MouseState, GameState, WaveStatus, AdminConfig, CenterScreenMessage } from '../../types';
 import { hexToRgba } from '../utils'; // Ensure this path is correct
@@ -206,8 +205,8 @@ export function drawHUD(
     if (displayedSkills.length > 0) {
         const groundPlatform = platforms.find(p => p.id === 'ground');
         if (groundPlatform) {
-            const sizeReductionFactor = 0.8; // Reduce size by 20%
-            let currentIconX = groundPlatform.x + (30 * (canvasWidth / 1100)) * sizeReductionFactor; 
+            const sizeReductionFactor = 0.7; // Total 30% reduction
+            let currentIconX = groundPlatform.x + (30 * (canvasWidth / 1100)); // Reverted X scaling
             const iconCharSize = (26 * (Math.min(canvasWidth / 1100, canvasHeight / 650))) * sizeReductionFactor;
             const internalPadding = (6 * (Math.min(canvasWidth / 1100, canvasHeight / 650))) * sizeReductionFactor;
             const iconBoxBorder = (2 * (Math.min(canvasWidth / 1100, canvasHeight / 650))) * sizeReductionFactor;
@@ -217,6 +216,14 @@ export function drawHUD(
             const skillBorderColor = '#00FFFF'; // Cyan border
             const countTextColor = '#F0E68C'; // Light yellow for count
             const countFontSize = (11 * (Math.min(canvasWidth / 1100, canvasHeight / 650))) * sizeReductionFactor;
+
+            // Calculate totalElementHeight once (assuming all icons have roughly same height requirements)
+            // This is a simplification; for vastly different icon heights, calculate per icon.
+            const tempGrayBgHeight = iconCharSize + 2 * internalPadding;
+            const tempTotalElementHeight = tempGrayBgHeight + 2 * iconBoxBorder;
+            // Reverted Y scaling for overallElementY's base calculation
+            const overallElementY = groundPlatform.y + Math.round((groundPlatform.height - tempTotalElementHeight) / 2) - (5 * (canvasHeight / 650));
+
 
             displayedSkills.forEach(skill => {
                 if (skill.id === 'immortal' && player.revives <= 0) {
@@ -239,18 +246,16 @@ export function drawHUD(
 
                 const baseContentActualWidth = iconCharActualWidth + (countTextActualWidth > 0 ? spacingBetweenIconAndCount + countTextActualWidth : 0);
                 const grayBgWidth = baseContentActualWidth + internalPadding * 2;
-                const grayBgHeight = iconCharSize + 2 * internalPadding;
+                const grayBgHeight = iconCharSize + 2 * internalPadding; // Use current iconCharSize
 
                 const totalElementWidth = grayBgWidth + 2 * iconBoxBorder;
-                const totalElementHeight = grayBgHeight + 2 * iconBoxBorder;
-
-                const overallElementY = groundPlatform.y + Math.round((groundPlatform.height - totalElementHeight) / 2) - (5 * (canvasHeight / 650)) * sizeReductionFactor;
+                // const totalElementHeight = grayBgHeight + 2 * iconBoxBorder; // This is already tempTotalElementHeight
 
                 ctx.shadowColor = skillBorderColor;
                 ctx.shadowBlur = 5 * sizeReductionFactor;
                 ctx.strokeStyle = skillBorderColor;
                 ctx.lineWidth = iconBoxBorder;
-                ctx.strokeRect(currentIconX, overallElementY, totalElementWidth, totalElementHeight);
+                ctx.strokeRect(currentIconX, overallElementY, totalElementWidth, tempTotalElementHeight); // Use tempTotalElementHeight
                 ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
 
                 ctx.fillStyle = skillBgColor;
@@ -276,7 +281,7 @@ export function drawHUD(
                     x: currentIconX,
                     y: overallElementY,
                     w: totalElementWidth,
-                    h: totalElementHeight
+                    h: tempTotalElementHeight // Use tempTotalElementHeight
                 };
                 skillIconRectsOnCanvasRef.current.push({ id: skill.id, name: skill.name, rect: iconRectForHover });
 

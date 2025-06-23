@@ -208,28 +208,13 @@ export const PERMANENT_SKILLS_SHOP: LeveledSkill[] = [
 
 export const applyHatEffect = (player: Player, hatId: string | null): Player => {
     let tempPlayer = {...player};
-    // Reset effects that might be exclusive to hats or need resetting
+    // Reset effects that are purely from hats or need to be reset before hat application.
+    // Base stats like movementSpeed and defense are assumed to be correctly set by
+    // permanent skills before this function is called.
     tempPlayer.movementSpeed = tempPlayer.baseMovementSpeed || PLAYER_MOVEMENT_SPEED;
     tempPlayer.defense = tempPlayer.baseDefense || PLAYER_INITIAL_DEFENSE;
-    // Keep current min/max projectile damage, don't reset to base here. Specific hats will modify it.
-    // tempPlayer.minProjectileDamage = tempPlayer.baseMinProjectileDamage || PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE;
-    // tempPlayer.maxProjectileDamage = tempPlayer.baseMaxProjectileDamage || PLAYER_INITIAL_MAX_PROJECTILE_DAMAGE;
+    // xpBonus is NOT reset here. It comes in with permanent skill bonus already applied.
     
-    // Reset XP bonus to what player might have from permanent skills, then let hat add to it
-    const existingXpSkillLevel = tempPlayer.purchasedPermanentSkills[SKILL_ID_XP_BOOST]?.level || 0;
-    if (existingXpSkillLevel > 0) {
-        const skillDef = PERMANENT_SKILLS_SHOP.find(s=>s.id === SKILL_ID_XP_BOOST);
-        // Corrected xpBonus calculation logic if skillDef and levelDef are found
-        if (skillDef && skillDef.levels[existingXpSkillLevel-1] && skillDef.levels[existingXpSkillLevel-1].xpBonus) {
-             tempPlayer.xpBonus = 1 + (skillDef.levels[existingXpSkillLevel-1].xpBonus || 0);
-        } else {
-            tempPlayer.xpBonus = 1;
-        }
-    } else {
-        tempPlayer.xpBonus = 1;
-    }
-
-
     tempPlayer.challengerHatMoreEnemies = false;
     tempPlayer.canFreeRerollUpgrades = false;
     
@@ -240,8 +225,10 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
 
     switch(hat.id) {
         case 'hat_helmet': 
-            tempPlayer.defense = Math.min(1, (tempPlayer.baseDefense || PLAYER_INITIAL_DEFENSE) + 0.10);
-            tempPlayer.movementSpeed = (tempPlayer.baseMovementSpeed || PLAYER_MOVEMENT_SPEED) * 0.90;
+            // Apply hat effect on top of existing defense (which may include permanent skill bonuses)
+            tempPlayer.defense = Math.min(0.95, tempPlayer.defense + 0.10); // Assuming defense is a value like 0.0 for 0%, 0.1 for 10%
+            // Apply hat effect as a multiplier to existing movement speed
+            tempPlayer.movementSpeed *= 0.90;
             break;
         case 'hat_wizard': 
             const wizardMinBonus = (tempPlayer.baseMinProjectileDamage || PLAYER_INITIAL_MIN_PROJECTILE_DAMAGE) * 0.05;
@@ -250,9 +237,10 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
             tempPlayer.maxProjectileDamage += wizardMaxBonus;
             break;
         case 'hat_propeller_beanie': 
-             tempPlayer.xpBonus += 0.10; // Additive to any existing skill bonus
+             tempPlayer.xpBonus += 0.10; // ADDITIVE: This correctly adds to existing xpBonus.
             break;
         case 'hat_crown': 
+            // No direct stat changes for player; effect is on enemy drop and handled elsewhere.
             break;
     }
     return tempPlayer;
@@ -260,6 +248,7 @@ export const applyHatEffect = (player: Player, hatId: string | null): Player => 
 
 export const applyStaffEffectToPlayerBase = (player: Player, staffId: string | null): Player => {
   let tempPlayer = {...player};
+  // Resets specific to staff's base functionality. Upgrades will apply on top of these.
   tempPlayer.attackSpeed = tempPlayer.baseAttackSpeed || PLAYER_INITIAL_ATTACK_SPEED;
   tempPlayer.projectilesAreHoming = false; 
   tempPlayer.projectileHomingStrength = 0;
@@ -276,7 +265,10 @@ export const applyStaffEffectToPlayerBase = (player: Player, staffId: string | n
       // Damage modification and homing for Emerald staff is handled per-projectile in createPlayerProjectiles
       break;
     case 'staff_frozen_tip': 
-      // Pierce count is handled per-projectile in createPlayerProjectiles
+      // Pierce count is handled per-projectile in createPlayerProjectiles.
+      // If player has piercing upgrades, those will add to the staff's base (or 0 if staff gives no pierce).
+      // The reset of projectilePierceCount to 0 above is for the staff's baseline.
+      // The actual pierce for the projectile will be 1 + (player.projectilePierceCount from upgrades) + (staff specific pierce if any, handled in createPlayerProjectiles)
       break;
   }
   return tempPlayer;

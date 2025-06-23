@@ -1,6 +1,4 @@
 
-
-
 // gameLogic/rendering/entityRenderer.ts
 import {
     Player, Enemy, Projectile, Particle, ActiveLightningBolt, FloatingText,
@@ -137,33 +135,64 @@ export function drawPlayerAndAccessories(
     if (player.shieldMaxHp && typeof player.shieldCurrentHp === 'number' && player.shieldCurrentHp > 0) {
         const shieldCenterX = player.x + player.width / 2;
         const shieldCenterY = player.y + player.height / 2;
-        const shieldRadius = Math.max(player.width, player.height) * 0.7; 
-        const shieldStrengthAlpha = 0.5 + (player.shieldCurrentHp / player.shieldMaxHp) * 0.5;
+        const baseShieldRadius = Math.max(player.width, player.height) * 0.7; 
 
-        const pulse = Math.sin(gameTime * 5) * 0.1 + 0.9; 
-        ctx.strokeStyle = `rgba(0, 220, 255, ${shieldStrengthAlpha * 0.9 * pulse})`;
-        ctx.lineWidth = 3 + Math.sin(gameTime * 5 + Math.PI / 2) * 1; 
-        ctx.shadowColor = `rgba(0, 220, 255, ${shieldStrengthAlpha * 0.7})`;
-        ctx.shadowBlur = 10 + Math.sin(gameTime * 5) * 3; 
-        ctx.beginPath();
-        ctx.arc(shieldCenterX, shieldCenterY, shieldRadius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; 
+        const shieldStrengthFactor = player.shieldCurrentHp / player.shieldMaxHp; // 0 to 1
 
+        // Inner Pulsating Shield Visual
+        const dynamicShieldRadius = baseShieldRadius * (0.95 + Math.sin(gameTime * 3.5) * 0.05); // Radius pulse
+        const innerPulseIntensity = 0.5 + Math.sin(gameTime * 5) * 0.5; // General intensity pulse (0 to 1)
+        
+        const fillAlpha = (0.1 + shieldStrengthFactor * 0.2) * innerPulseIntensity; // Base fill alpha, scaled by strength and pulse
+        const strokeAlpha = (0.3 + shieldStrengthFactor * 0.5) * innerPulseIntensity; // Base stroke alpha
+
+        // Pulsating Fill Gradient
         const gradient = ctx.createRadialGradient(
-            shieldCenterX, shieldCenterY, shieldRadius * 0.5,
-            shieldCenterX, shieldCenterY, shieldRadius
+            shieldCenterX, shieldCenterY, dynamicShieldRadius * 0.4,
+            shieldCenterX, shieldCenterY, dynamicShieldRadius
         );
-        gradient.addColorStop(0, `rgba(0, 180, 220, ${shieldStrengthAlpha * 0.1 * pulse})`);
-        gradient.addColorStop(1, `rgba(0, 180, 220, ${shieldStrengthAlpha * 0.3 * pulse})`);
+        gradient.addColorStop(0, `rgba(0, 150, 190, ${fillAlpha * 0.5})`); // More transparent center
+        gradient.addColorStop(1, `rgba(0, 150, 190, ${fillAlpha})`);       // More opaque edge
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(shieldCenterX, shieldCenterY, shieldRadius, 0, Math.PI * 2);
+        ctx.arc(shieldCenterX, shieldCenterY, dynamicShieldRadius, 0, Math.PI * 2);
         ctx.fill();
+
+        // Pulsating Stroke and Shadow
+        ctx.strokeStyle = `rgba(0, 180, 220, ${strokeAlpha})`; 
+        ctx.lineWidth = (1.5 + innerPulseIntensity * 1.5); // Line width also pulses
+        ctx.shadowColor = `rgba(0, 180, 220, ${strokeAlpha * 0.8})`;
+        ctx.shadowBlur = (6 + innerPulseIntensity * 6); // Shadow blur pulses
+        ctx.beginPath();
+        ctx.arc(shieldCenterX, shieldCenterY, dynamicShieldRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Green HP Bar (Outer visual)
+        const hpBarRadius = baseShieldRadius + 4; 
+        const hpBarThickness = 5 * 0.7; // Reduced thickness by 30%
+        const hpProgress = shieldStrengthFactor;
+
+        ctx.strokeStyle = 'rgba(0, 80, 0, 0.4)'; 
+        ctx.lineWidth = hpBarThickness;
+        ctx.lineCap = 'butt'; 
+        ctx.beginPath();
+        ctx.arc(shieldCenterX, shieldCenterY, hpBarRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (hpProgress > 0) {
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.95)'; 
+            ctx.lineWidth = hpBarThickness;
+            ctx.lineCap = 'round'; 
+            ctx.beginPath();
+            ctx.arc(shieldCenterX, shieldCenterY, hpBarRadius, -Math.PI / 2, -Math.PI / 2 + hpProgress * (Math.PI * 2), false);
+            ctx.stroke();
+        }
+
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
         ctx.lineWidth = 1; 
+        ctx.lineCap = 'butt';
     }
 
-    // After drawing the main player, draw miniatures if any
     drawMiniatures(ctx, player, gameTime);
 }
 

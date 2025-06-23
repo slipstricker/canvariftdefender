@@ -1,15 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig,
@@ -39,7 +28,7 @@ import { createEnemyOrBoss, createMiniSplitterEnemy } from './gameLogic/enemyLog
 import { runEnemyUpdateCycle, updateParticleSystem } from './gameLogic/entityCycle';
 import { checkCollisions } from './gameLogic/collisionLogic';
 import { updateWaveSystem } from './gameLogic/waveManager';
-import { initializeNewGameState, getDefaultPlayerState } from './gameLogic/gameSetup'; 
+import { initializeNewGameState, getDefaultPlayerState, applyPermanentSkillEffectsToPlayer } from './gameLogic/gameSetup'; 
 import { parseCheatNickname } from './gameLogic/cheatLogic'; 
 import { createParticleEffect, triggerThunderboltStrikes, applyBurnEffect, applyChillEffect, handleExplosion } from './gameLogic/gameEffects';
 import { drawBackground } from './gameLogic/rendering/backgroundRenderer';
@@ -546,7 +535,14 @@ const App: React.FC = () => {
 
         const bossRewardChoices = InitialUpgradesConfig.filter(u => {
             if (!uniquePlayerUpgradeIds.includes(u.id)) return false; 
-            if (singleApplicationSkillIdsToExclude.includes(u.id)) return false; 
+            if (singleApplicationSkillIdsToExclude.includes(u.id)) return false;
+            // Ensure the upgrade is not already maxed out
+            if (u.maxApplications !== undefined) {
+                const currentApplications = playerRef.current.upgrades.filter(uid => uid === u.id).length;
+                if (currentApplications >= u.maxApplications) {
+                    return false;
+                }
+            }
             return true;
         });
 
@@ -1110,8 +1106,25 @@ const App: React.FC = () => {
   };
   const handlePurchasePermanentSkill = (skillId: string, levelToBuy: number, price: number) => {
       if (playerCoins >= price) {
-          setPlayerCoins(prev => prev - price);
-          setPurchasedPermanentSkillsState(prev => ({...prev, [skillId]: {level: levelToBuy}}));
+          setPlayerCoins(prevPlayerCoins => prevPlayerCoins - price);
+          
+          const newSkillsState = {
+              ...purchasedPermanentSkillsState,
+              [skillId]: {level: levelToBuy}
+          };
+          setPurchasedPermanentSkillsState(newSkillsState);
+
+          // Immediately update the live player object with new skill effects
+          setPlayer(currentPlayer => {
+              let updatedLivePlayer = { ...currentPlayer };
+              updatedLivePlayer.purchasedPermanentSkills = newSkillsState;
+              
+              updatedLivePlayer = applyPermanentSkillEffectsToPlayer(updatedLivePlayer, newSkillsState);
+              updatedLivePlayer = applyHatEffect(updatedLivePlayer, updatedLivePlayer.selectedHatId);
+              updatedLivePlayer = applyStaffEffectToPlayerBase(updatedLivePlayer, updatedLivePlayer.selectedStaffId);
+              
+              return updatedLivePlayer;
+          });
           playSoundFromManager('/assets/sounds/event_cosmetic_unlock_01.wav', 0.8);
       }
   };

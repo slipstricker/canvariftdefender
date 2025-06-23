@@ -7,8 +7,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'catalyst',
     numericId: '001',
-    name: 'Catalisador',
-    description: 'Dano do Projétil +5. Acumula infinitamente.',
+    name: 'Catalisador Estelar',
+    description: 'Infunde seus projéteis com energia estelar pura, aumentando seu dano em +5. O poder cósmico é ilimitado!',
     tier: 'comum',
     apply: (player) => { 
       player.minProjectileDamage += 5; 
@@ -18,16 +18,16 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'growth',
     numericId: '002',
-    name: 'Crescimento',
-    description: 'HP Máx. +10. Acumula infinitamente.',
+    name: 'Vigor Nebuloso',
+    description: 'Fortalece sua essência vital com a resiliência das nebulosas, expandindo seu HP Máx. em +10. Sua vitalidade não conhece fronteiras!',
     tier: 'comum',
     apply: (player) => { player.maxHp += 10; player.hp += 10; },
   },
   {
     id: 'resonance',
     numericId: '003',
-    name: 'Ressonância',
-    description: 'Vel. de Ataque +12%. Máx +100% (aprox. 6 aplicações).',
+    name: 'Ressonância Cósmica',
+    description: 'Sincroniza seus ataques com o ritmo pulsante do cosmos, acelerando sua Vel. de Ataque em +12%.',
     tier: 'comum',
     apply: (player) => { 
       player.attackSpeed *= 1.12; 
@@ -38,8 +38,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'swift',
     numericId: '004',
-    name: 'Rapidez',
-    description: 'Vel. de Movimento +20%. Máx +150% (aprox. 5 aplicações).',
+    name: 'Velocidade de Cometa',
+    description: 'Canaliza a velocidade dos cometas, impulsionando sua Vel. de Movimento em +20%. Deslize pelo campo de batalha!',
     tier: 'comum',
     apply: (player) => { 
       player.movementSpeed *= 1.20; 
@@ -50,8 +50,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'eyesight',
     numericId: '005',
-    name: 'Visão Aguçada',
-    description: 'Chance Crítica +5%. Máx 40% (7 aplicações da base de 5%).',
+    name: 'Olhar Transcendente',
+    description: 'Sua percepção transcende o comum, alinhando seus disparos com pontos fracos cósmicos. Chance Crítica +5%.',
     tier: 'comum',
     apply: (player) => { 
       player.critChance += 0.05;
@@ -62,17 +62,16 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'renew',
     numericId: '006',
-    name: 'Renovar',
-    description: 'Cura para HP Máx.',
+    name: 'Fluxo Restaurador',
+    description: 'Uma onda de energia restauradora das estrelas-mãe preenche você, curando todo seu HP.',
     tier: 'incomum',
     apply: (player) => { player.hp = player.maxHp; },
-    maxApplications: 1, 
   },
   {
     id: 'leech',
     numericId: '007',
-    name: 'Sanguessuga',
-    description: 'Roubo de Vida +3% do Dano. Máx 30% (10 aplicações).',
+    name: 'Drenagem Vital Cósmica',
+    description: 'Drena a energia vital dos inimigos cósmicos, convertendo 3% do dano causado em cura para você.',
     tier: 'incomum',
     apply: (player) => { 
       player.lifeSteal += 0.03; 
@@ -83,8 +82,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'scorchedRounds',
     numericId: '008',
-    name: 'Munição Incendiária',
-    description: 'Projéteis têm 25% de chance de Incendiar inimigos (20% dano proj./s, 3s). Acumula 3x. Mais apps melhoram.',
+    name: 'Projéteis Solares',
+    description: 'Encanta seus projéteis com o fogo de sóis distantes. 25% de chance de Incendiar, causando dano contínuo. Aprimoramentos intensificam a chama.',
     tier: 'incomum',
     apply: (player) => {
       if (!player.appliesBurn) {
@@ -108,8 +107,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'cryoRounds',
     numericId: '009',
-    name: 'Munição Criogênica',
-    description: 'Projéteis têm 25% de chance de Congelar inimigos, lentidão de 30% por 3s. Mais apps melhoram.',
+    name: 'Disparos do Vácuo Gelado',
+    description: 'Imbui seus disparos com o frio do vácuo espacial. 25% de chance de Congelar, reduzindo velocidade. Aprimoramentos aprofundam o gelo.',
     tier: 'incomum',
     apply: (player) => {
       if (!player.appliesChill) {
@@ -131,8 +130,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'piercingRounds',
     numericId: '010',
-    name: 'Munição Perfurante',
-    description: 'Seus projéteis perfuram +1 inimigo. Aumenta com mais aplicações.',
+    name: 'Fragmentos de Asteroide',
+    description: 'Projéteis reforçados com fragmentos de asteroides, capazes de perfurar +1 inimigo. Aprimoramentos aumentam a penetração.',
     tier: 'incomum',
     apply: (player) => {
       if (player.projectilePierceCount === undefined) {
@@ -147,24 +146,18 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'fragmentation',
     numericId: '011',
-    name: 'Fragmentação',
-    description: 'Inimigos soltam 2 projéteis fracos ao morrer. Máx 1 aplicação.',
+    name: 'Estilhaços Vingativos',
+    description: 'A essência instável dos inimigos derrotados se estilhaça em 2 projéteis vingativos ao serem destruídos.',
     tier: 'raro',
     apply: (player, game) => {
-      // The logic for fragmentation projectile creation is handled
-      // by the gameContextForUpgrades.enableFragmentation defined in App.tsx.
-      // This apply function primarily serves to ensure the upgrade ID is added to player.upgrades,
-      // which is done by the caller (handleApplyUpgrade).
-      // No direct action needed here to set up the fragmentation effect itself,
-      // as long as the player.upgrades array reflects that this upgrade was chosen.
     },
     maxApplications: 1,
   },
   {
     id: 'thunderbolt',
     numericId: '012',
-    name: 'Raio Trovejante',
-    description: 'Invoca raios dos céus a cada 5s. Começa com 2 raios, +1 por acúmulo. Máx 6 raios.',
+    name: 'Fúria da Tempestade Cósmica',
+    description: 'Comande a fúria de tempestades cósmicas! Raios celestiais caem a cada 5s. Começa com 2, mais raios a cada aprimoramento.',
     tier: 'raro',
     apply: (player, game) => {
       let currentBoltApplications = 0;
@@ -182,8 +175,8 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'appraisal',
     numericId: '013',
-    name: 'Avaliação',
-    description: '+1 escolha de item de agora em diante. Máx 3 aplicações.',
+    name: 'Intuição Cósmica',
+    description: 'Sua intuição cósmica se expande, revelando +1 opção de melhoria a cada ascensão de nível.',
     tier: 'raro',
     apply: (player) => { player.appraisalChoices += 1; },
     maxApplications: 3, 
@@ -191,20 +184,19 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'immortal',
     numericId: '014',
-    name: 'Imortal',
-    description: '+1 Reviver (limpa inimigos ao reviver). Carta removida após pegar.',
+    name: 'Desafio ao Vazio',
+    description: 'Desafie o vazio! Ganha +1 chance de retornar da aniquilação, liberando uma onda de energia purificadora.',
     tier: 'raro',
     apply: (player, game) => { 
       player.revives += 1; 
-      // The removal from pool is now handled by handleApplyUpgrade in App.tsx for upgrades with maxApplications: 1
     },
     maxApplications: 1,
   },
   {
     id: 'seekerRounds',
     numericId: '015',
-    name: 'Mísseis Teleguiados',
-    description: 'Seus projéteis rastreiam lentamente os inimigos. Melhora com mais aplicações.',
+    name: 'Inteligência Estelar',
+    description: 'Projéteis imbuídos com inteligência estelar, buscando os adversários cósmicos. Aprimoramentos refinam a perseguição.',
     tier: 'raro',
     apply: (player) => {
       player.projectilesAreHoming = true;
@@ -219,25 +211,32 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'energyShield',
     numericId: '016',
-    name: 'Escudo de Energia',
-    description: 'Ganha um escudo que bloqueia 1 acerto. Recarrega após 5s sem dano.',
+    name: 'Barreira de Plasma',
+    description: 'Materializa um escudo de plasma, que anula 3 impactos inimigos. Cada aplicação aumenta em +3. O escudo recarrega após 10s sem sofrer dano.',
     tier: 'raro',
     apply: (player) => {
-      if (player.shieldMaxHp === undefined) {
-        player.shieldMaxHp = 1; 
-        player.shieldCurrentHp = 1;
-        player.shieldRechargeDelay = 5; 
-        player.shieldRechargeRate = 1; 
-        player.shieldLastDamagedTime = 0;
+      const HP_PER_LEVEL = 3;
+      const INITIAL_HP = 3;
+      const RECHARGE_DELAY_SECONDS = 10;
+      const FULL_RECHARGE_DURATION_SECONDS = 1; // Time to fully recharge after delay
+
+      if (player.shieldMaxHp === undefined) { // First application
+        player.shieldMaxHp = INITIAL_HP;
+      } else { // Subsequent applications
+        player.shieldMaxHp += HP_PER_LEVEL;
       }
+      player.shieldCurrentHp = player.shieldMaxHp; // Fully charge shield on upgrade
+      player.shieldRechargeDelay = RECHARGE_DELAY_SECONDS;
+      // Rate is HP per second. If maxHP is 20 and duration is 1s, rate is 20.
+      player.shieldRechargeRate = player.shieldMaxHp / FULL_RECHARGE_DURATION_SECONDS; 
+      player.shieldLastDamagedTime = 0; // Ensure it can start recharging if not recently hit
     },
-    maxApplications: 1, 
   },
   {
     id: 'damagingAura',
     numericId: '017',
-    name: 'Aura Danosa',
-    description: 'Seu corpo causa dano de contato (10% do dano médio do projétil). +10% por nível (máx 50%).',
+    name: 'Aura Disruptiva',
+    description: 'Irradia uma aura de energia disruptiva, causando dano de contato (10% do seu dano). Aprimoramentos amplificam a intensidade.',
     tier: 'raro',
     apply: (player) => {
       if (player.damagingAuraFactor === undefined || player.damagingAuraFactor < 0.1) {
@@ -251,15 +250,14 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'mirroredMinion',
     numericId: '018',
-    name: 'Miniatura Espelhada',
-    description: 'Invoca 1 pequena cópia sua que atira automaticamente (20% dano do projétil máx., 50% vel. tiro). Nv2: +1 cópia (total 2).',
+    name: 'Eco Espectral',
+    description: 'Cria um eco espectral de si mesmo que dispara autonomamente (20% dano, 50% vel. tiro). Aprimoramentos podem duplicar este aliado astral.',
     tier: 'raro',
     apply: (player) => {
       if (!player.miniatures) {
         player.miniatures = { count: 1, lastShotTimes: [0] };
       } else if (player.miniatures.count < 2) {
         player.miniatures.count++;
-        // Ensure lastShotTimes array has enough entries
         while (player.miniatures.lastShotTimes.length < player.miniatures.count) {
           player.miniatures.lastShotTimes.push(0);
         }
