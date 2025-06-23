@@ -271,3 +271,6 @@ export const GROUND_PLATFORM_SPRITE_ART_HEIGHT = Math.round(GROUND_PLATFORM_HEIG
 // Dynamic Platform Art Dimensions
 export const DYNAMIC_PLATFORM_SPRITE_ART_WIDTH = 5;
 export const DYNAMIC_PLATFORM_SPRITE_ART_HEIGHT = Math.round(DYNAMIC_PLATFORM_HEIGHT / SPRITE_PIXEL_SIZE);
+
+// Fragmentation Projectile Damage
+export const FRAGMENTATION_PROJECTILE_DAMAGE_FACTOR = 1 / 3; // Each fragment deals 1/3 of player's average projectile damage

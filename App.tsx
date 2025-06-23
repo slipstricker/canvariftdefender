@@ -7,6 +7,9 @@
 
 
 
+
+
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Player, Enemy, Projectile, Particle, Platform, Upgrade, GameState, Keys, MouseState, ActiveLightningBolt, LeaderboardEntry, AdminConfig,
@@ -23,7 +26,8 @@ import {
   PIXEL_FONT_FAMILY,
   WAVE_ANNOUNCEMENT_DURATION,
   BOSS_MINION_RESPAWN_WARNING_DURATION,
-  PROJECTILE_ART_WIDTH, PROJECTILE_ART_HEIGHT
+  PROJECTILE_ART_WIDTH, PROJECTILE_ART_HEIGHT,
+  FRAGMENTATION_PROJECTILE_DAMAGE_FACTOR
 } from './constants';
 import { ALL_HATS_SHOP, ALL_STAFFS_SHOP, PERMANENT_SKILLS_SHOP, DEFAULT_HAT_ID, DEFAULT_STAFF_ID, applyHatEffect, applyStaffEffectToPlayerBase } from './gameLogic/shopLogic';
 import { repositionAndResizeAllDynamicPlatforms } from './gameLogic/platformLogic';
@@ -89,7 +93,7 @@ const App: React.FC = () => {
         const currentStaff = ALL_STAFFS_SHOP.find(s => s.id === playerRef.current.selectedStaffId) || ALL_STAFFS_SHOP.find(s => s.id === DEFAULT_STAFF_ID)!;
         const projectileColor = currentStaff.projectileColor;
         const projectileGlowColor = currentStaff.projectileGlowColor;
-        const fragmentationDamage = Math.max(1, ((playerRef.current.minProjectileDamage + playerRef.current.maxProjectileDamage) / 2) / 3);
+        const fragmentationDamage = Math.max(1, ((playerRef.current.minProjectileDamage + playerRef.current.maxProjectileDamage) / 2) * FRAGMENTATION_PROJECTILE_DAMAGE_FACTOR);
         const fragProjectileSize = SPRITE_PIXEL_SIZE * 3 * 1.2; 
         for(let i = 0; i < 2; i++) {
           const angle = Math.random() * Math.PI * 2; const speed = 350;
@@ -97,7 +101,8 @@ const App: React.FC = () => {
             x: enemy.x + enemy.width / 2 - fragProjectileSize / 2, y: enemy.y + enemy.height / 2 - fragProjectileSize / 2,
             width: fragProjectileSize, height: fragProjectileSize, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
             damage: fragmentationDamage, owner: 'player', color: projectileColor, glowEffectColor: projectileGlowColor,
-            appliedEffectType: 'standard', damagedEnemyIDs: [], draw: () => {},
+            appliedEffectType: 'standard', // Fragmentation projectiles are treated as 'standard' for their individual hit logic, damage is pre-set
+            damagedEnemyIDs: [], draw: () => {},
             hitsLeft: 1 + (playerRef.current.projectilePierceCount || 0), isHoming: playerRef.current.projectilesAreHoming,
             homingStrength: playerRef.current.projectileHomingStrength, trailSpawnTimer: 0.01 + Math.random() * 0.02,
           }]);

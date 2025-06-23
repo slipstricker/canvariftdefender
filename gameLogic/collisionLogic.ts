@@ -1,6 +1,8 @@
 
 
 
+
+
 import React from 'react';
 import { Player, Enemy, Projectile, FloatingText, AdminConfig, AppliedStatusEffect, ParticleType, Particle, CoinDrop } from '../types';
 import { BOSS_FURY_MODE_HP_THRESHOLD, SPRITE_PIXEL_SIZE, SKILL_DASH_INVINCIBILITY_DURATION, BOSS_LASER_SPEED } from '../constants';
@@ -100,23 +102,23 @@ export function checkCollisions(
           proj.damagedEnemyIDs!.push(enemy.id); 
 
           let actualDamageDealt;
-          let damageTextColor = "#FFFFFF";
-          let showDamageNumber = true;
+          let damageTextColor = "#FFFFFF"; // Default damage text color
           const isCrit = Math.random() < player.critChance;
 
           if (isCrit) {
-            actualDamageDealt = player.maxProjectileDamage * player.critMultiplier;
+            actualDamageDealt = proj.damage * player.critMultiplier; // Use projectile's base damage for crit calculation
+            damageTextColor = "#FF00FF"; // Crit color
             const newCritText: FloatingText = {
               id: `crit-${performance.now()}-${Math.random()}`,
               text: "CRÍTICO!",
               x: enemy.x + enemy.width / 2,
               y: enemy.y + enemy.height / 2 - 10, 
-              vy: -88, life: 0.7, initialLife: 0.7, color: "#FF00FF", fontSize: 24, 
+              vy: -88, life: 0.7, initialLife: 0.7, color: damageTextColor, fontSize: 24, 
             };
             setFloatingTexts(prev => [...prev, newCritText]);
-            showDamageNumber = false; 
           } else {
-            actualDamageDealt = Math.floor(Math.random() * (player.maxProjectileDamage - player.minProjectileDamage + 1)) + player.minProjectileDamage;
+            actualDamageDealt = proj.damage; // Use projectile's own base damage
+            // Determine color based on the actual damage dealt relative to player's main weapon potential for visual feedback
             damageTextColor = getDamageColor(actualDamageDealt, player.minProjectileDamage, player.maxProjectileDamage);
           }
           
@@ -127,14 +129,13 @@ export function checkCollisions(
           let enemyAfterHit = { ...enemy };
           if (player.appliesBurn && Math.random() < player.appliesBurn.chance) {
              enemyAfterHit = applyBurnEffect(enemyAfterHit, player, adminConfig); 
-             showDamageNumber = isCrit ? false : true; 
           }
           if (player.appliesChill && Math.random() < player.appliesChill.chance) {
              enemyAfterHit = applyChillEffect(enemyAfterHit, player, setFloatingTexts); 
-             showDamageNumber = isCrit ? false : true; 
           }
 
-          if (showDamageNumber) { 
+          // Show damage number if not a crit (crits have their own text)
+          if (!isCrit) { 
              const damageText: FloatingText = {
                 id: `dmg-${performance.now()}-${enemy.id}`,
                 text: `${Math.round(actualDamageDealt)}`,
