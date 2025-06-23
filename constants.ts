@@ -78,14 +78,14 @@ export const INITIAL_WAVE_CONFIG = {
 };
 
 export const WAVE_CONFIG_INCREMENTS = {
-  enemiesPerWave: 2,
+  enemiesPerWave: 3,
   spawnIntervalReduction: 0.05,
   minSpawnInterval: 0.3,
   intermissionTimeIncrease: 0.5,
 };
 
 export const PLAYER_INTERMISSION_HEAL_PERCENT = 0.1;
-export const WAVE_ANNOUNCEMENT_DURATION = 5; 
+export const WAVE_ANNOUNCEMENT_DURATION = 3; 
 export const INTERMISSION_COUNTDOWN_UPDATE_INTERVAL = 1.1; 
 export const BOSS_SUMMON_WARNING_UPDATE_INTERVAL = 1;
 
@@ -115,7 +115,7 @@ export const ADMIN_START_WAVE = 1;
 export const ENEMY_CONFIG = {
   standard: {
     hp: {
-      base: 10,
+      base: 15,
       perPlayerLevel: 2,
       perWaveFactor: 0.15, // Total HP *= (1 + (wave - 1) * perWaveFactor)
     },
@@ -138,7 +138,7 @@ export const ENEMY_CONFIG = {
     xp: {
       base: 9, // Was 10, reduced by 10%
       perPlayerLevel: 1, // Kept as is, or could also be reduced if desired e.g. Math.floor(1 * 0.9) = 0
-      perWaveFactor: 0.07, // Was 0.10, reduced by 30% -> 0.10 * 0.7 = 0.07
+      perWaveFactor: 0.05, // Was 0.10, reduced by 30% -> 0.10 * 0.7 = 0.07
     }
   },
   splitter: { // factors applied to Standard stats for the same wave/level
@@ -232,14 +232,14 @@ export const BOSS_GLOBAL_SKILL_COOLDOWN_MS = 2000; // 2 seconds
 
 
 // Splitter Enemy Constants
-export const SPLITTER_MIN_WAVE = 3;
+export const SPLITTER_MIN_WAVE = 4;
 export const MINI_SPLITTER_COUNT_MIN = 2;
 export const MINI_SPLITTER_COUNT_MAX = 3;
 
 // Healing Drone Constants
 export const HEALING_DRONE_MIN_WAVE = 4;
 export const HEALING_DRONE_SPAWN_CHANCE = 0.12; 
-export const HEALING_DRONE_HEAL_PERCENTAGE = 0.20; 
+export const HEALING_DRONE_HEAL_PERCENTAGE = 0.40; 
 export const HEALING_DRONE_HEAL_COOLDOWN_MS = 5000;
 export const HEALING_DRONE_MAX_TARGETS = 3;
 export const HEALING_DRONE_HEAL_RANGE = 140 * SPRITE_PIXEL_SIZE; 
