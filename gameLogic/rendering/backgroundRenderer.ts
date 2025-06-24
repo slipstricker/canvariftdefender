@@ -6,7 +6,7 @@ let backgroundImage: HTMLImageElement | null = null;
 let backgroundImageLoadingStarted: boolean = false;
 let backgroundImageError: boolean = false;
 
-const BACKGROUND_IMAGE_PATH = '/assets/images/background.png'; // Define the path to your image
+const BACKGROUND_IMAGE_PATH = 'https://i.imgur.com/QGjB6pL.png'; // Define the path to your image
 
 export function drawBackground(
     ctx: CanvasRenderingContext2D,
