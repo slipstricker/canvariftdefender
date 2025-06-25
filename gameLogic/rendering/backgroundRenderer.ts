@@ -2,12 +2,6 @@
 import { Star, Nebula } from '../../types';
 import { hexToRgba } from '../utils';
 
-let backgroundImage: HTMLImageElement | null = null;
-let backgroundImageLoadingStarted: boolean = false;
-let backgroundImageError: boolean = false;
-
-const BACKGROUND_IMAGE_PATH = 'https://i.imgur.com/QGjB6pL.png'; // Define the path to your image
-
 export function drawBackground(
     ctx: CanvasRenderingContext2D,
     stars: Readonly<Star[]>,
@@ -16,31 +10,9 @@ export function drawBackground(
     canvasWidth: number,
     canvasHeight: number
 ) {
-    // Attempt to load the background image once
-    if (!backgroundImage && !backgroundImageLoadingStarted && !backgroundImageError) {
-        backgroundImageLoadingStarted = true;
-        const img = new Image();
-        img.onload = () => {
-            backgroundImage = img;
-            console.log("Background image loaded successfully.");
-        };
-        img.onerror = () => {
-            backgroundImageError = true;
-            console.error("Failed to load background image. Falling back to solid color.");
-        };
-        img.src = BACKGROUND_IMAGE_PATH;
-    }
+    ctx.fillStyle = '#030712'; // Base space color
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // Draw background: image if loaded, otherwise fallback color
-    if (backgroundImage && backgroundImage.complete && backgroundImage.naturalWidth > 0) {
-        ctx.drawImage(backgroundImage, 0, 0, canvasWidth, canvasHeight);
-    } else {
-        // Fallback solid color background if image not loaded or error
-        ctx.fillStyle = '#030712'; // Base space color
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-    }
-
-    // Draw Nebulae (on top of background image or color)
     nebulae.forEach(nebula => {
         ctx.save();
         ctx.translate(nebula.x, nebula.y);
@@ -56,7 +28,6 @@ export function drawBackground(
         ctx.restore();
     });
 
-    // Draw Stars (on top of background image or color, and nebulae)
     stars.forEach(star => {
         const currentOpacity = star.baseOpacity + Math.sin(gameTime * star.twinkleSpeed + star.x) * (star.baseOpacity * 0.5);
         ctx.fillStyle = `rgba(220, 220, 255, ${Math.max(0.1, currentOpacity)})`; // Ensure some base visibility
